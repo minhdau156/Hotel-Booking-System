@@ -1,0 +1,117 @@
+<title>Layout Manager và JPanel</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+<main>
+
+<p class="crumbs"><a href="0001-cua-so-swing-dau-tien.html">← Bài 1</a> · Bài học 2 / 6 · <a href="../reference/swing-cheatsheet.html">Sổ tay Swing</a> · <a href="0003-jtable-va-tablemodel.html">Bài 3 →</a></p>
+
+<h1>Layout Manager và cách ghép JPanel</h1>
+<p class="subtitle">Cách bố cục nội dung bên trong một cửa sổ — nền tảng để dựng bất kỳ màn hình nào.</p>
+
+<div class="box box-source">
+  <span class="label">Nguồn chính</span>
+  Đọc trước: <a href="https://docs.oracle.com/javase/tutorial/uiswing/layout/visual.html">Oracle — A Visual Guide to Layout Managers</a> (xem hình minh hoạ từng layout) và <a href="https://docs.oracle.com/javase/tutorial/uiswing/layout/layoutlist.html">Oracle — How to Use Various Layout Managers</a> (trang how-to cho từng loại).
+</div>
+
+<h2>1. Vì sao cần Layout Manager?</h2>
+<p>
+  Swing không để bạn đặt component theo toạ độ pixel cố định (dù về mặt kỹ thuật có thể làm được qua <code>setLayout(null)</code> — nhưng gần như luôn là ý tưởng tồi, vì giao diện sẽ vỡ khi đổi kích thước cửa sổ hoặc đổi font). Thay vào đó, mỗi <code>Container</code> (thường là <code>JFrame</code> hoặc <code>JPanel</code>) có một <strong>Layout Manager</strong> chịu trách nhiệm tự tính toán vị trí/kích thước của các component con.
+</p>
+
+<h2>2. Bốn layout dùng nhiều nhất</h2>
+<table class="ref">
+  <tr><th>Layout</th><th>Hình dung</th><th>Dùng khi nào</th></tr>
+  <tr><td><code>BorderLayout</code></td><td>5 vùng: Bắc/Nam/Đông/Tây/Giữa</td><td>Khung ngoài cùng của một màn hình — thanh công cụ trên, nội dung chính giữa, nút hành động dưới.</td></tr>
+  <tr><td><code>FlowLayout</code></td><td>Xếp ngang, tự xuống dòng</td><td>Một hàng công cụ nhỏ: nhãn + ô nhập + nút.</td></tr>
+  <tr><td><code>GridLayout(rows, cols)</code></td><td>Lưới ô đều nhau</td><td>Form nhiều "nhãn: ô nhập" xếp thẳng hàng.</td></tr>
+  <tr><td><code>BoxLayout(axis)</code></td><td>Xếp chồng 1 trục, kích thước tự nhiên</td><td>Danh sách nút xếp dọc (sidebar), hoặc gộp nhiều panel con lại với nhau.</td></tr>
+</table>
+
+<h2>3. Chìa khoá thật sự: <strong>lồng panel vào nhau</strong></h2>
+<p>
+  Không có layout nào tự nó dựng được một màn hình phức tạp. Bí quyết là chia màn hình thành các <strong>vùng nhỏ</strong>, mỗi vùng là một <code>JPanel</code> với layout riêng phù hợp, rồi ghép chúng lại bằng <code>BorderLayout</code> ở ngoài cùng:
+</p>
+<pre><code>JPanel root = new JPanel(new BorderLayout());
+
+// Vùng trên: thanh tìm kiếm, xếp ngang
+JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+searchBar.add(new JLabel("Tìm:"));
+searchBar.add(new JTextField(20));
+searchBar.add(new JButton("Tìm kiếm"));
+root.add(searchBar, BorderLayout.NORTH);
+
+// Vùng giữa: nội dung chính (ví dụ một bảng, xem Bài 3)
+root.add(new JScrollPane(new JTable()), BorderLayout.CENTER);
+
+// Vùng dưới: các nút hành động, xếp ngang
+JPanel actionBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+actionBar.add(new JButton("Thêm mới"));
+actionBar.add(new JButton("Xoá"));
+root.add(actionBar, BorderLayout.SOUTH);</code></pre>
+<p>Đây gần như là bộ khung của <em>mọi</em> màn hình danh sách trong một ứng dụng quản lý dữ liệu: <code>BorderLayout</code> ngoài cùng, mỗi vùng là một panel con với layout đơn giản hơn bên trong.</p>
+
+<div class="box box-pitfall">
+  <span class="label">Lỗi hay gặp</span>
+  <code>BorderLayout</code> chỉ chấp nhận <strong>một</strong> component cho mỗi vùng — gọi <code>add(x, BorderLayout.SOUTH)</code> hai lần thì lần sau sẽ <em>thay thế</em> lần trước, không phải xếp chồng. Muốn nhiều thứ trong cùng một vùng, luôn bọc chúng trong một <code>JPanel</code> con trước.
+</div>
+<div class="box box-pitfall">
+  <span class="label">Lỗi hay gặp</span>
+  Đổi component sau khi cửa sổ đã hiển thị (thêm/xoá component lúc runtime) mà giao diện không tự vẽ lại? Gọi thêm <code>revalidate()</code> (tính lại layout) rồi <code>repaint()</code> (vẽ lại) trên container đó.
+</div>
+
+<h2>Kiểm tra nhanh</h2>
+
+<div class="quiz">
+  <p class="q">1. Layout mặc định của một <code>JPanel</code> mới tạo (không gọi <code>setLayout</code>) là gì?</p>
+  <label><input type="radio" name="q1" data-correct="true"> FlowLayout</label>
+  <label><input type="radio" name="q1" data-correct="false"> BorderLayout</label>
+  <label><input type="radio" name="q1" data-correct="false"> GridLayout</label>
+  <label><input type="radio" name="q1" data-correct="false"> BoxLayout</label>
+  <div class="feedback correct">Đúng — <code>JPanel</code> mặc định dùng <code>FlowLayout</code>. (Lưu ý: <code>JFrame</code>'s content pane lại mặc định <code>BorderLayout</code> — hai thứ khác nhau.)</div>
+  <div class="feedback incorrect">Chưa đúng. Gợi ý: đây là layout đơn giản nhất, chỉ xếp component theo hàng ngang.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">2. Muốn chia một vùng thành 5 khu (trên/dưới/trái/phải/giữa), mỗi khu chứa một component/panel, nên dùng layout nào?</p>
+  <label><input type="radio" name="q2" data-correct="false"> FlowLayout</label>
+  <label><input type="radio" name="q2" data-correct="true"> BorderLayout</label>
+  <label><input type="radio" name="q2" data-correct="false"> GridLayout</label>
+  <label><input type="radio" name="q2" data-correct="false"> BoxLayout</label>
+  <div class="feedback correct">Đúng — đây chính xác là mô tả 5 vùng NORTH/SOUTH/EAST/WEST/CENTER của <code>BorderLayout</code>.</div>
+  <div class="feedback incorrect">Chưa đúng. Gợi ý: layout đúng có tên gọi trùng với ý tưởng "biên" của một khung hình.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">3. Bạn cần đặt hai hàng nút bấm, xếp dọc, bên trong vùng <code>SOUTH</code> của một <code>BorderLayout</code>. Cách làm đúng là gì?</p>
+  <label><input type="radio" name="q3" data-correct="true"> Bọc hai hàng trong một JPanel con</label>
+  <label><input type="radio" name="q3" data-correct="false"> Thêm thẳng cả hai hàng vào SOUTH</label>
+  <label><input type="radio" name="q3" data-correct="false"> Gọi setLayout hai lần liên tiếp nhau</label>
+  <label><input type="radio" name="q3" data-correct="false"> Đặt hai nút cùng một toạ độ</label>
+  <div class="feedback correct">Đúng — tạo một <code>JPanel</code> con dùng <code>BoxLayout(Y_AXIS)</code> (hoặc <code>GridLayout(2,1)</code>) chứa 2 hàng, rồi add panel con đó vào <code>SOUTH</code>.</div>
+  <div class="feedback incorrect">Chưa đúng — nhớ lại lỗi ở hộp "Lỗi hay gặp" phía trên: mỗi vùng của <code>BorderLayout</code> chỉ nhận một component.</div>
+</div>
+
+<h2>Bài tập thực hành</h2>
+<ol>
+  <li>Viết một chương trình Swing độc lập (như Bài 1) dựng một cửa sổ 500x400 gồm: vùng <code>NORTH</code> là một <code>FlowLayout</code> chứa 1 <code>JLabel</code> + 1 <code>JTextField</code> + 1 <code>JButton</code>; vùng <code>CENTER</code> là một <code>JPanel</code> nền màu khác (dùng <code>setBackground(Color.LIGHT_GRAY)</code> để dễ thấy ranh giới các vùng); vùng <code>SOUTH</code> là một <code>JPanel</code> con dùng <code>GridLayout(1, 2)</code> chứa 2 nút "Lưu" và "Huỷ".</li>
+  <li>Chạy thử, phóng to/thu nhỏ cửa sổ, quan sát từng vùng co giãn khác nhau thế nào (vùng <code>CENTER</code> giãn nhiều nhất, các vùng biên gần như giữ nguyên chiều cao/rộng theo nội dung).</li>
+  <li>Thử đổi vùng <code>SOUTH</code> sang <code>FlowLayout(FlowLayout.RIGHT)</code> thay vì <code>GridLayout</code>, chạy lại, so sánh sự khác biệt về cách 2 nút được xếp.</li>
+  <li>Tự kiểm tra:
+    <ul>
+      <li>[ ] Bạn giải thích được vì sao phải bọc 2 nút trong một <code>JPanel</code> con thay vì add thẳng vào <code>SOUTH</code>.</li>
+      <li>[ ] Bạn thấy rõ sự khác biệt giữa <code>GridLayout</code> (2 nút bằng nhau tuyệt đối) và <code>FlowLayout</code> (2 nút theo kích thước tự nhiên).</li>
+    </ul>
+  </li>
+  <li><strong>Áp dụng vào project của bạn:</strong> chọn một màn hình bất kỳ bạn cần xây (danh sách, form, hay báo cáo), phác thảo trên giấy các vùng của nó theo đúng mô hình "<code>BorderLayout</code> ngoài cùng + panel con bên trong" trước khi viết code — việc này tiết kiệm rất nhiều thời gian so với vừa code vừa đoán layout.</li>
+</ol>
+
+<div class="box box-ask">
+  <span class="label">Đừng ngại hỏi</span>
+  Layout Manager là phần dễ gây nản nhất khi mới học Swing vì kết quả trực quan không phải lúc nào cũng như tưởng tượng. Cứ dán code + mô tả "tôi muốn thế này nhưng nó lại ra thế kia" để được hỗ trợ ngay.
+</div>
+
+<div class="next-lesson">
+  <strong>Tiếp theo:</strong> <a href="0003-jtable-va-tablemodel.html">Bài 3 — JTable và AbstractTableModel</a> — hiển thị danh sách dữ liệu dạng bảng, thứ bạn vừa để trống ở vùng <code>CENTER</code> phía trên.
+</div>
+
+</main>

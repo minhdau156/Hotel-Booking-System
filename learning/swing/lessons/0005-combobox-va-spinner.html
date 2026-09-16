@@ -1,0 +1,104 @@
+<title>JComboBox và JSpinner</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+<main>
+
+<p class="crumbs"><a href="0004-listener-va-dialog.html">← Bài 4</a> · Bài học 5 / 6 · <a href="../reference/swing-cheatsheet.html">Sổ tay Swing</a> · <a href="0006-cardlayout.html">Bài 6 →</a></p>
+
+<h1>JComboBox và JSpinner</h1>
+<p class="subtitle">Thay ô nhập tự do bằng lựa chọn có kiểm soát — ít lỗi nhập liệu hơn hẳn so với JTextField.</p>
+
+<div class="box box-source">
+  <span class="label">Nguồn chính</span>
+  Đọc trước: <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/combobox.html">Oracle — How to Use Combo Boxes</a>, <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/spinner.html">Oracle — How to Use Spinners</a>.
+</div>
+
+<h2>1. <code>JComboBox&lt;T&gt;</code> — chọn 1 trong danh sách có sẵn</h2>
+<pre><code>JComboBox&lt;String&gt; sizeCombo = new JComboBox&lt;&gt;(new String[] {"Nhỏ", "Vừa", "Lớn"});
+String selected = (String) sizeCombo.getSelectedItem();
+sizeCombo.addActionListener(e -&gt; System.out.println("Chọn: " + sizeCombo.getSelectedItem()));</code></pre>
+<p>Combo box cũng hoạt động tốt với các đối tượng tự định nghĩa, không chỉ <code>String</code>:</p>
+<pre><code>JComboBox&lt;Category&gt; categoryCombo = new JComboBox&lt;&gt;(categories.toArray(new Category[0]));
+Category selected = (Category) categoryCombo.getSelectedItem();</code></pre>
+<div class="box box-pitfall">
+  <span class="label">Lỗi hay gặp</span>
+  Nếu <code>Category</code> chưa override <code>toString()</code>, dropdown sẽ hiện những dòng khó đọc kiểu <code>Category@6bc7c054</code> thay vì tên thật. Cách đơn giản nhất: override <code>toString()</code> trong lớp <code>Category</code> để trả về tên hiển thị. Không muốn đụng vào lớp model thì gắn <code>combo.setRenderer(...)</code> tuỳ chỉnh — phức tạp hơn nhưng tách biệt "hiển thị" khỏi "dữ liệu".
+</div>
+
+<h2>2. <code>JSpinner</code> — ba loại model</h2>
+<table class="ref">
+  <tr><th>Model</th><th>Dùng cho</th><th>Ví dụ</th></tr>
+  <tr><td><code>SpinnerNumberModel(value, min, max, step)</code></td><td>Số trong một khoảng, có bước nhảy</td><td>Số lượng, độ tuổi, tiền (kết hợp định dạng)</td></tr>
+  <tr><td><code>SpinnerDateModel()</code></td><td>Ngày/giờ</td><td>Ngày sinh, khoảng thời gian báo cáo</td></tr>
+  <tr><td><code>SpinnerListModel(list)</code></td><td>Một danh sách cố định, cuộn qua lại</td><td>Danh sách trạng thái, danh sách size áo</td></tr>
+</table>
+<pre><code>// Số, từ 1 đến 100, bước nhảy 1, giá trị khởi đầu 1
+JSpinner qtySpinner = new JSpinner(new SpinnerNumberModel(1, 1, 100, 1));
+
+// Ngày — Swing lõi không có lịch chọn ngày (date picker) riêng, đây là cách "gốc" gần nhất
+JSpinner dateSpinner = new JSpinner(new SpinnerDateModel());
+dateSpinner.setEditor(new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd"));</code></pre>
+
+<h2>3. Đọc giá trị ra kiểu bạn thực sự cần</h2>
+<pre><code>int quantity = (Integer) qtySpinner.getValue();
+
+Date raw = (Date) dateSpinner.getValue();
+LocalDate date = raw.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();</code></pre>
+<p><code>JSpinner.getValue()</code> luôn trả về <code>Object</code> — bạn phải ép kiểu đúng theo loại model đang dùng (<code>Integer</code> cho <code>SpinnerNumberModel</code>, <code>java.util.Date</code> cho <code>SpinnerDateModel</code>). Vì phần lớn code Java hiện đại dùng <code>java.time.LocalDate</code> thay vì <code>java.util.Date</code> cũ, bước chuyển đổi ở trên gần như luôn cần thiết.</p>
+
+<h2>Kiểm tra nhanh</h2>
+
+<div class="quiz">
+  <p class="q">1. <code>JComboBox</code> chứa các object tự định nghĩa, chưa override <code>toString()</code>. Dropdown sẽ hiện gì?</p>
+  <label><input type="radio" name="q1" data-correct="true"> Một chuỗi dạng ClassName@hashcode rất khó đọc</label>
+  <label><input type="radio" name="q1" data-correct="false"> Tự động hiện đúng tên trường đó</label>
+  <label><input type="radio" name="q1" data-correct="false"> Một danh sách trống không hiện gì</label>
+  <label><input type="radio" name="q1" data-correct="false"> Số thứ tự index của phần tử</label>
+  <div class="feedback correct">Đúng — không override <code>toString()</code>, Java dùng cách hiển thị mặc định (tên lớp + mã hash), không đọc được.</div>
+  <div class="feedback incorrect">Chưa đúng — Java không tự đoán trường nào để hiển thị; bạn phải tự override <code>toString()</code> hoặc gắn renderer.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">2. <code>SpinnerDateModel</code> dùng để làm gì?</p>
+  <label><input type="radio" name="q2" data-correct="true"> Chọn ngày tháng có bước tăng giảm</label>
+  <label><input type="radio" name="q2" data-correct="false"> Chọn một con số trong giới hạn</label>
+  <label><input type="radio" name="q2" data-correct="false"> Chọn một mục trong một danh sách</label>
+  <label><input type="radio" name="q2" data-correct="false"> Chọn nhiều giá trị cùng một lúc</label>
+  <div class="feedback correct">Đúng — đây là model dành riêng cho ngày/giờ, dùng kèm <code>JSpinner.DateEditor</code> để định dạng hiển thị.</div>
+  <div class="feedback incorrect">Chưa đúng — mô tả đó khớp với <code>SpinnerNumberModel</code> hoặc <code>SpinnerListModel</code>, không phải <code>SpinnerDateModel</code>.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">3. Vì sao nên dùng <code>JSpinner</code> + <code>SpinnerDateModel</code> để nhập ngày, thay vì một <code>JTextField</code> tự do?</p>
+  <label><input type="radio" name="q3" data-correct="true"> Tránh người dùng gõ sai định dạng</label>
+  <label><input type="radio" name="q3" data-correct="false"> Vì JTextField không hỗ trợ gõ số</label>
+  <label><input type="radio" name="q3" data-correct="false"> Vì JSpinner chạy nhanh hơn rất nhiều</label>
+  <label><input type="radio" name="q3" data-correct="false"> Vì JTextField không tồn tại trong Swing</label>
+  <div class="feedback correct">Đúng — <code>JSpinner</code> ràng buộc định dạng và giới hạn giá trị hợp lệ ngay từ lúc nhập, không cần validate chuỗi thủ công sau đó.</div>
+  <div class="feedback incorrect">Chưa đúng — cả hai component đều tồn tại và <code>JTextField</code> gõ số bình thường; vấn đề nằm ở việc kiểm soát định dạng, không phải tốc độ hay khả năng tồn tại.</div>
+</div>
+
+<h2>Bài tập thực hành</h2>
+<ol>
+  <li>Dựng một form (dùng lại mẫu <code>GridLayout</code> từ Bài 2/4): một <code>JComboBox&lt;String&gt;</code> chọn "Nam"/"Nữ"/"Khác", một <code>JSpinner</code> dùng <code>SpinnerNumberModel</code> cho "Tuổi" (giới hạn 0-120), và một <code>JSpinner</code> dùng <code>SpinnerDateModel</code> cho "Ngày sinh".</li>
+  <li>Thêm một nút "In thông tin" — khi bấm, đọc cả 3 giá trị ra đúng kiểu (<code>String</code>, <code>int</code>, <code>LocalDate</code>) và in ra console theo định dạng: <code>Giới tính: X, Tuổi: Y, Ngày sinh: Z</code>.</li>
+  <li>Thử nhập tuổi vượt quá 120 bằng cách bấm mũi tên tăng liên tục — quan sát việc <code>JSpinner</code> tự chặn lại ở giá trị max, so với việc bạn phải tự viết code kiểm tra nếu dùng <code>JTextField</code>.</li>
+  <li>Tự kiểm tra:
+    <ul>
+      <li>[ ] Giá trị tuổi không bao giờ vượt quá 120 hay xuống dưới 0, kể cả khi bấm mũi tên liên tục.</li>
+      <li>[ ] Giá trị ngày sinh in ra đúng là một <code>LocalDate</code> hợp lệ, không phải chuỗi thô hay <code>Date</code> chưa chuyển đổi.</li>
+    </ul>
+  </li>
+  <li><strong>Áp dụng vào project của bạn:</strong> bất kỳ chỗ nào trong ứng dụng cần người dùng chọn một giá trị từ tập hữu hạn (loại, trạng thái, danh mục) hoặc nhập ngày/số có giới hạn hợp lý, ưu tiên <code>JComboBox</code>/<code>JSpinner</code> thay vì <code>JTextField</code> — nó loại bỏ hẳn một lớp lỗi nhập liệu mà bạn sẽ phải tự validate nếu dùng ô nhập tự do.</li>
+</ol>
+
+<div class="box box-ask">
+  <span class="label">Đừng ngại hỏi</span>
+  Việc ép kiểu <code>Object</code> trả về từ <code>getValue()</code>/<code>getSelectedItem()</code> hay bị nhầm kiểu (<code>ClassCastException</code>) — nếu gặp lỗi này, dán stack trace ra để được chỉ đúng chỗ sai.
+</div>
+
+<div class="next-lesson">
+  <strong>Tiếp theo:</strong> <a href="0006-cardlayout.html">Bài 6 — CardLayout: điều hướng nhiều màn hình</a> — ghép tất cả các màn hình đã học thành một ứng dụng hoàn chỉnh, chuyển qua lại được giữa chúng.
+</div>
+
+</main>

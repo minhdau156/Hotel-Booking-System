@@ -1,0 +1,137 @@
+<title>Event Listener và JOptionPane</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+<main>
+
+<p class="crumbs"><a href="0003-jtable-va-tablemodel.html">← Bài 3</a> · Bài học 4 / 6 · <a href="../reference/swing-cheatsheet.html">Sổ tay Swing</a> · <a href="0005-combobox-va-spinner.html">Bài 5 →</a></p>
+
+<h1>Event Listener và JOptionPane</h1>
+<p class="subtitle">Làm cho giao diện phản ứng lại với người dùng, và hỏi/báo lại cho họ bằng hộp thoại.</p>
+
+<div class="box box-source">
+  <span class="label">Nguồn chính</span>
+  Đọc trước: <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/actionlistener.html">Oracle — How to Write an Action Listener</a>, <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/generalrules.html">Oracle — General Information about Writing Event Listeners</a>, <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/dialog.html">Oracle — How to Make Dialogs</a>.
+</div>
+
+<h2>1. Mô hình chung: đăng ký một "người nghe"</h2>
+<p>
+  Swing dùng mô hình <em>event listener</em>: bạn đăng ký một đối tượng cài đặt một interface nào đó (ví dụ <code>ActionListener</code>) vào một component, Swing sẽ tự gọi phương thức tương ứng khi sự kiện xảy ra. Vì hầu hết interface listener chỉ có <strong>một</strong> phương thức trừu tượng (functional interface), bạn có thể viết bằng lambda ngắn gọn thay vì tạo cả một lớp:
+</p>
+<pre><code>JButton button = new JButton("Lưu");
+button.addActionListener(e -&gt; {
+    // code xử lý khi bấm nút, chạy ngay trên EDT
+    System.out.println("Đã bấm Lưu");
+});</code></pre>
+
+<h2>2. Khi interface có nhiều hơn 1 phương thức</h2>
+<p>
+  <code>MouseListener</code> có 5 phương thức trừu tượng (<code>mouseClicked</code>, <code>mousePressed</code>, <code>mouseReleased</code>, <code>mouseEntered</code>, <code>mouseExited</code>) — không phải functional interface nên không dùng lambda trực tiếp được. Swing cung cấp sẵn lớp <code>MouseAdapter</code> (cài đặt rỗng cho cả 5), bạn chỉ cần kế thừa và override đúng cái mình cần:
+</p>
+<pre><code>table.addMouseListener(new MouseAdapter() {
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        if (e.getClickCount() == 2) {
+            // double-click — mở form sửa dòng đang chọn
+        }
+    }
+});</code></pre>
+<p>Cùng ý tưởng đó áp dụng cho <code>ListSelectionListener</code> (theo dõi dòng bảng đang chọn thay đổi) — thường dùng để bật/tắt một nút tuỳ theo có dòng nào đang được chọn hay không:</p>
+<pre><code>table.getSelectionModel().addListSelectionListener(e -&gt; {
+    deleteButton.setEnabled(table.getSelectedRow() &gt;= 0);
+});</code></pre>
+
+<h2>3. Nói chuyện lại với người dùng: <code>JOptionPane</code></h2>
+<p>Ba tình huống phổ biến nhất:</p>
+<pre><code>// Báo lỗi
+JOptionPane.showMessageDialog(parent, "Tên không được để trống", "Lỗi", JOptionPane.ERROR_MESSAGE);
+
+// Hỏi Có/Không
+int choice = JOptionPane.showConfirmDialog(parent, "Xoá dòng này?", "Xác nhận", JOptionPane.YES_NO_OPTION);
+if (choice == JOptionPane.YES_OPTION) { /* xoá */ }
+
+// Nhập nhanh 1 giá trị
+String name = JOptionPane.showInputDialog(parent, "Nhập tên:");
+// name == null nếu người dùng bấm Cancel — luôn kiểm tra trước khi dùng</code></pre>
+
+<h2>4. Form nhiều ô nhập trong một hộp thoại</h2>
+<p>
+  <code>JOptionPane</code> không giới hạn ở text đơn giản — tham số <code>message</code> có thể là <strong>bất kỳ component nào</strong>, kể cả một <code>JPanel</code> chứa nhiều ô nhập. Đây là cách dựng một "form dialog" đầy đủ mà không cần tự viết lớp con của <code>JDialog</code>:
+</p>
+<pre><code>JTextField nameField = new JTextField();
+JTextField emailField = new JTextField();
+
+JPanel form = new JPanel(new GridLayout(2, 2, 8, 8));
+form.add(new JLabel("Tên:"));
+form.add(nameField);
+form.add(new JLabel("Email:"));
+form.add(emailField);
+
+int result = JOptionPane.showConfirmDialog(parent, form, "Thêm người dùng", JOptionPane.OK_CANCEL_OPTION);
+if (result == JOptionPane.OK_OPTION) {
+    String name = nameField.getText();
+    String email = emailField.getText();
+    // validate rồi lưu
+}</code></pre>
+<div class="box box-pitfall">
+  <span class="label">Lỗi hay gặp</span>
+  Không validate dữ liệu trước khi lưu, để exception từ tầng dưới (service/DB) bay thẳng lên và hiện stack trace thô cho người dùng. Luôn bọc lời gọi lưu trong <code>try/catch</code>, và hiện lỗi qua <code>showMessageDialog</code> thay vì để chương trình "vỡ" giữa chừng.
+</div>
+
+<h2>Kiểm tra nhanh</h2>
+
+<div class="quiz">
+  <p class="q">1. Interface nào bạn dùng để phản ứng khi người dùng bấm một <code>JButton</code>?</p>
+  <label><input type="radio" name="q1" data-correct="true"> ActionListener</label>
+  <label><input type="radio" name="q1" data-correct="false"> MouseListener</label>
+  <label><input type="radio" name="q1" data-correct="false"> KeyListener</label>
+  <label><input type="radio" name="q1" data-correct="false"> WindowListener</label>
+  <div class="feedback correct">Đúng — <code>ActionListener</code> là interface chuẩn cho "hành động cấp cao" như bấm nút, chọn combo box, Enter trong ô nhập.</div>
+  <div class="feedback incorrect">Chưa đúng — các listener kia dùng cho sự kiện chuột thô, phím thô, hoặc sự kiện cửa sổ, không phải cho nút bấm.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">2. <code>MouseListener</code> có 5 phương thức trừu tượng. Để chỉ cần override đúng 1 cái mình cần, cách gọn nhất là gì?</p>
+  <label><input type="radio" name="q2" data-correct="true"> Kế thừa lớp MouseAdapter có sẵn rồi</label>
+  <label><input type="radio" name="q2" data-correct="false"> Cài đặt cả năm phương thức rỗng</label>
+  <label><input type="radio" name="q2" data-correct="false"> Chuyển hẳn sang dùng ActionListener thay thế</label>
+  <label><input type="radio" name="q2" data-correct="false"> Tự viết ra một interface MouseListener mới</label>
+  <div class="feedback correct">Đúng — <code>MouseAdapter</code> đã cài sẵn cả 5 phương thức (rỗng), bạn chỉ cần override cái cần dùng.</div>
+  <div class="feedback incorrect">Chưa đúng — không cần cài đặt thủ công hay viết lại interface, Swing đã có sẵn lớp tiện ích cho việc này.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">3. Muốn hiển thị một form gồm nhiều ô nhập bên trong một hộp thoại OK/Cancel bằng <code>JOptionPane</code>, cách làm đúng là gì?</p>
+  <label><input type="radio" name="q3" data-correct="true"> Đưa một JPanel làm tham số message</label>
+  <label><input type="radio" name="q3" data-correct="false"> Gọi showMessageDialog liên tục nhiều lần nữa</label>
+  <label><input type="radio" name="q3" data-correct="false"> Tạo nhiều JOptionPane xếp chồng lên nhau</label>
+  <label><input type="radio" name="q3" data-correct="false"> Dùng showInputDialog với nhiều tham số hơn</label>
+  <div class="feedback correct">Đúng — tham số <code>message</code> của <code>showConfirmDialog</code> nhận bất kỳ component nào, kể cả một <code>JPanel</code> chứa cả form.</div>
+  <div class="feedback incorrect">Chưa đúng — không cần gọi nhiều lần hay xếp chồng dialog; <code>JOptionPane</code> đã hỗ trợ nhận cả một panel làm nội dung.</div>
+</div>
+
+<h2>Bài tập thực hành</h2>
+<p>Tiếp tục từ ứng dụng <code>Book</code>/<code>JTable</code> ở Bài 3 (nếu chưa làm Bài 3, dựng lại nhanh một bảng tương tự với 2-3 field).</p>
+<ol>
+  <li>Thay nút "In sách đã chọn" bằng hành vi thật: khi bấm mà <em>chưa</em> chọn dòng nào, hiện <code>showMessageDialog</code> báo "Vui lòng chọn một dòng" (ERROR_MESSAGE). Khi đã chọn, hiện <code>showConfirmDialog</code> hỏi "Xoá quyển [tên sách]?" — nếu chọn Yes thì xoá khỏi danh sách và gọi lại <code>setRows(...)</code>/<code>fireTableDataChanged()</code> để bảng cập nhật.</li>
+  <li>Thêm nút "Thêm sách mới" mở một form dialog (theo đúng mẫu mục 4) với 3 ô nhập tương ứng 3 field của <code>Book</code>. Khi OK, validate tối thiểu (tên sách không được trống — nếu trống, hiện lỗi và <strong>không đóng</strong> luồng thêm sách, để người dùng sửa lại) rồi thêm vào danh sách và cập nhật bảng.</li>
+  <li>Gắn thêm double-click vào một dòng (dùng <code>MouseAdapter</code> theo mục 2) để mở lại đúng form đó, nhưng đã điền sẵn dữ liệu của dòng được chọn, cho phép sửa.</li>
+  <li>Tự kiểm tra:
+    <ul>
+      <li>[ ] Xoá khi chưa chọn dòng nào không làm crash, chỉ hiện thông báo nhắc chọn.</li>
+      <li>[ ] Thêm sách với tên trống bị chặn lại, có thông báo lỗi rõ ràng.</li>
+      <li>[ ] Double-click một dòng mở đúng form sửa với dữ liệu điền sẵn, không phải form trống.</li>
+    </ul>
+  </li>
+  <li><strong>Áp dụng vào project của bạn:</strong> đây chính là bộ ba "list → dialog thêm/sửa → dialog xác nhận xoá" sẽ lặp lại ở hầu hết mọi màn hình quản lý dữ liệu trong ứng dụng thật của bạn. Cân nhắc viết 2-3 hàm tiện ích dùng chung (ví dụ một hàm <code>showForm(...)</code> nhận vào danh sách field cần nhập) để không phải viết lại <code>GridLayout</code> + <code>showConfirmDialog</code> mỗi lần.</li>
+</ol>
+
+<div class="box box-ask">
+  <span class="label">Đừng ngại hỏi</span>
+  Việc kết hợp form dialog + validate + cập nhật bảng có khá nhiều bước nhỏ dễ quên một bước — nếu có bước nào không hoạt động như mong đợi, dán code ra để được rà lại từng bước.
+</div>
+
+<div class="next-lesson">
+  <strong>Tiếp theo:</strong> <a href="0005-combobox-va-spinner.html">Bài 5 — JComboBox và JSpinner</a> — thay ô nhập tự do bằng lựa chọn có kiểm soát (chọn từ danh sách có sẵn, chọn số/ngày trong giới hạn hợp lệ).
+</div>
+
+</main>

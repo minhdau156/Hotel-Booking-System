@@ -1,0 +1,120 @@
+<title>CardLayout: Điều hướng màn hình</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+<main>
+
+<p class="crumbs"><a href="0005-combobox-va-spinner.html">← Bài 5</a> · Bài học 6 / 6 · <a href="../reference/swing-cheatsheet.html">Sổ tay Swing</a></p>
+
+<h1>CardLayout: điều hướng nhiều màn hình</h1>
+<p class="subtitle">Ghép các màn hình đã học (Bài 1-5) thành một ứng dụng hoàn chỉnh, chuyển qua lại được.</p>
+
+<div class="box box-source">
+  <span class="label">Nguồn chính</span>
+  Đọc trước: <a href="https://docs.oracle.com/javase/tutorial/uiswing/layout/card.html">Oracle — How to Use CardLayout</a>.
+</div>
+
+<h2>1. Ý tưởng: nhiều panel, chung một vùng hiển thị</h2>
+<p>
+  <code>CardLayout</code> quản lý nhiều component (thường là <code>JPanel</code>) dùng chung một vùng, giống như một chồng bài — chỉ lá trên cùng hiển thị tại một thời điểm. Đây là cách chuẩn để làm "ứng dụng nhiều màn hình trong một cửa sổ" mà không cần mở <code>JFrame</code> mới mỗi lần chuyển màn hình.
+</p>
+<pre><code>CardLayout cardLayout = new CardLayout();
+JPanel content = new JPanel(cardLayout);
+
+content.add(new BookListPanel(), "books");
+content.add(new ReportsPanel(), "reports");
+
+cardLayout.show(content, "books"); // hiện "books" lúc khởi động</code></pre>
+<p>Gọi <code>cardLayout.show(content, "reports")</code> bất cứ lúc nào để chuyển sang panel khác — thường được gọi từ trong một <code>ActionListener</code> của nút điều hướng.</p>
+
+<h2>2. Ghép với sidebar điều hướng</h2>
+<p>Kết hợp 3 thứ đã học ở các bài trước: <code>BorderLayout</code> làm khung ngoài, <code>BoxLayout</code> cho sidebar dọc, <code>CardLayout</code> cho vùng nội dung:</p>
+<pre><code>JPanel sidebar = new JPanel();
+sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
+
+JButton booksBtn = new JButton("Sách");
+booksBtn.addActionListener(e -&gt; cardLayout.show(content, "books"));
+sidebar.add(booksBtn);
+
+JButton reportsBtn = new JButton("Báo cáo");
+reportsBtn.addActionListener(e -&gt; cardLayout.show(content, "reports"));
+sidebar.add(reportsBtn);
+
+JFrame frame = new JFrame("Ứng dụng của tôi");
+frame.setLayout(new BorderLayout());
+frame.add(sidebar, BorderLayout.WEST);
+frame.add(content, BorderLayout.CENTER);</code></pre>
+<p>Đây chính là bộ khung điều hướng của gần như mọi ứng dụng desktop "nhiều màn hình, một cửa sổ": sidebar/menu cố định một bên, nội dung thay đổi ở giữa.</p>
+
+<div class="box box-pitfall">
+  <span class="label">Lỗi hay gặp</span>
+  Tên định danh (<code>"books"</code>, <code>"reports"</code>) là <code>String</code> gõ tay — gõ sai chính tả ở <code>show(content, "book")</code> (thiếu chữ "s") sẽ không báo lỗi biên dịch, chỉ đơn giản là không có gì xảy ra khi bấm nút. Cân nhắc khai báo hằng số (<code>static final String CARD_BOOKS = "books";</code>) dùng chung giữa nơi <code>add</code> và nơi <code>show</code> để tránh gõ sai.
+</div>
+
+<h2>3. Một panel có thể cần "làm mới" mỗi lần được hiện lại</h2>
+<p>
+  Nếu panel "reports" hiển thị dữ liệu có thể đã thay đổi từ lần cuối được xem, gọi <code>show()</code> không tự động refresh nội dung — nó chỉ đổi panel nào đang hiển thị. Muốn tự làm mới mỗi khi chuyển đến, gọi thẳng một phương thức <code>refresh()</code> của panel đó ngay trước hoặc sau khi gọi <code>show()</code>:
+</p>
+<pre><code>reportsBtn.addActionListener(e -&gt; {
+    reportsPanel.refresh(); // tự viết, nạp lại dữ liệu mới nhất
+    cardLayout.show(content, "reports");
+});</code></pre>
+
+<h2>Kiểm tra nhanh</h2>
+
+<div class="quiz">
+  <p class="q">1. <code>CardLayout</code> cho phép hiển thị bao nhiêu panel cùng lúc trong cùng một vùng?</p>
+  <label><input type="radio" name="q1" data-correct="true"> Chỉ một panel tại một thời điểm</label>
+  <label><input type="radio" name="q1" data-correct="false"> Tối đa hai panel cùng một lúc</label>
+  <label><input type="radio" name="q1" data-correct="false"> Không giới hạn số panel hiển thị</label>
+  <label><input type="radio" name="q1" data-correct="false"> Bằng đúng số nút bấm hiện có</label>
+  <div class="feedback correct">Đúng — giống một chồng bài, chỉ lá trên cùng hiển thị, các panel còn lại vẫn tồn tại trong bộ nhớ nhưng không vẽ ra màn hình.</div>
+  <div class="feedback incorrect">Chưa đúng — nhớ lại ẩn dụ "chồng bài": chỉ một lá trên cùng được nhìn thấy.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">2. Muốn chuyển sang hiển thị panel tên <code>"reports"</code>, bạn gọi gì?</p>
+  <label><input type="radio" name="q2" data-correct="true"> Gọi show trên đối tượng CardLayout đó</label>
+  <label><input type="radio" name="q2" data-correct="false"> Gọi setVisible true trên panel reports đó</label>
+  <label><input type="radio" name="q2" data-correct="false"> Gọi add lại panel reports thêm lần</label>
+  <label><input type="radio" name="q2" data-correct="false"> Gọi repaint trên toàn bộ cửa sổ</label>
+  <div class="feedback correct">Đúng — <code>cardLayout.show(content, "reports")</code>, gọi trên chính đối tượng <code>CardLayout</code>, không phải trên panel.</div>
+  <div class="feedback incorrect">Chưa đúng — <code>CardLayout</code> tự quản lý việc ẩn/hiện, bạn không tự gọi <code>setVisible</code>/<code>add</code>/<code>repaint</code> để chuyển card.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">3. Cách phổ biến nhất để điều khiển <code>CardLayout</code> hiển thị đúng card mong muốn là gì?</p>
+  <label><input type="radio" name="q3" data-correct="true"> Nút sidebar gọi show theo tên card</label>
+  <label><input type="radio" name="q3" data-correct="false"> Người dùng gõ tên card thủ công</label>
+  <label><input type="radio" name="q3" data-correct="false"> Chương trình tự đoán card kế tiếp</label>
+  <label><input type="radio" name="q3" data-correct="false"> Xoá hết panel rồi thêm panel mới</label>
+  <div class="feedback correct">Đúng — mỗi nút điều hướng (sidebar/menu) gắn một <code>ActionListener</code> gọi <code>cardLayout.show(content, "tên")</code> tương ứng.</div>
+  <div class="feedback incorrect">Chưa đúng — không cần người dùng gõ tay, đoán tự động, hay xoá/thêm lại panel; chỉ cần gọi <code>show()</code> với đúng tên.</div>
+</div>
+
+<h2>Bài tập thực hành — ghép mọi bài lại với nhau</h2>
+<ol>
+  <li>Dựng một <code>JFrame</code> với <code>BorderLayout</code>: sidebar (<code>BoxLayout</code>) ở <code>WEST</code> với 2 nút "Sách" và "Thêm sách", vùng nội dung (<code>CardLayout</code>) ở <code>CENTER</code>.</li>
+  <li>Card "Sách": panel <code>JTable</code>+<code>AbstractTableModel</code> từ Bài 3 (danh sách <code>Book</code>).</li>
+  <li>Card "Thêm sách": một form (theo mẫu Bài 4) với các ô nhập cho <code>Book</code>, dùng <code>JComboBox</code> cho một trường phân loại (ví dụ thể loại) và <code>JSpinner</code> cho năm xuất bản (Bài 5). Nút "Lưu" trên form này: thêm sách vào danh sách, rồi tự động <code>cardLayout.show(content, "books")</code> để quay lại danh sách và thấy ngay sách vừa thêm.</li>
+  <li>Nút "Sách" ở sidebar: mỗi lần bấm, gọi lại <code>setRows(...)</code> trên table model (giả lập "refresh") trước khi <code>show()</code>, theo đúng mẫu mục 3.</li>
+  <li>Tự kiểm tra:
+    <ul>
+      <li>[ ] Chuyển qua lại giữa 2 card mượt mà, không mở cửa sổ mới.</li>
+      <li>[ ] Thêm một sách mới ở card "Thêm sách" xong tự động quay lại card "Sách" và thấy sách đó xuất hiện ngay, không cần bấm thêm gì.</li>
+      <li>[ ] Gõ sai tên card ở một nút (cố ý, để kiểm chứng) và xác nhận bạn hiểu vì sao không có lỗi biên dịch nhưng nút đó "im lặng không làm gì".</li>
+    </ul>
+  </li>
+  <li><strong>Áp dụng vào project của bạn:</strong> đây là bộ khung điều hướng bạn sẽ dùng cho toàn bộ ứng dụng — một cửa sổ chính, một sidebar/menu, và mỗi tính năng lớn là một card. Từ nền tảng 6 bài học này, phần còn lại chủ yếu là lặp lại và tổ hợp: nhiều list panel hơn (Bài 3), nhiều form dialog hơn (Bài 4), nhiều lựa chọn có kiểm soát hơn (Bài 5) — tất cả gắn vào đúng một khung điều hướng này.</li>
+</ol>
+
+<div class="box box-ask">
+  <span class="label">Đừng ngại hỏi</span>
+  Đây là bài tập tổng hợp lớn nhất trong 6 bài — nếu bị kẹt ở bất kỳ bước nào (ghép sai layout, card không đổi, dữ liệu không refresh), cứ hỏi ngay, đừng cố tự mò quá lâu.
+</div>
+
+<div class="box box-source">
+  <span class="label">Hoàn thành 6 bài</span>
+  Bạn đã đi qua: cửa sổ &amp; luồng EDT (Bài 1) → layout &amp; ghép panel (Bài 2) → bảng dữ liệu (Bài 3) → sự kiện &amp; hộp thoại (Bài 4) → lựa chọn có kiểm soát (Bài 5) → điều hướng nhiều màn hình (Bài 6). Đây là đúng những gì <code>MISSION.md</code> đặt ra làm "success". Nếu muốn đào sâu thêm (ví dụ <code>SwingWorker</code>/xử lý nền, hay tuỳ biến renderer cho <code>JTable</code>), cứ nói — đó là các chủ đề nằm ngoài phạm vi ban đầu nhưng có thể thêm bài học mới bất cứ lúc nào.
+</div>
+
+</main>

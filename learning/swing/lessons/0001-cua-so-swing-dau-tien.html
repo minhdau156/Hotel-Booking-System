@@ -1,0 +1,109 @@
+<title>Cửa sổ Swing đầu tiên</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+<main>
+
+<p class="crumbs"><a href="../reference/swing-cheatsheet.html">Sổ tay Swing</a> · Bài học 1 / 6 · <a href="0002-layout-va-jpanel.html">Bài 2 →</a></p>
+
+<h1>Cửa sổ Swing đầu tiên: JFrame và Event Dispatch Thread</h1>
+<p class="subtitle">Nền tảng của mọi ứng dụng Swing — bất kể ứng dụng đó có bao nhiêu màn hình.</p>
+
+<div class="box box-source">
+  <span class="label">Nguồn chính</span>
+  Đọc trước (5-10 phút): <a href="https://docs.oracle.com/javase/tutorial/uiswing/start/index.html">Oracle — Getting Started with Swing</a> và <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Oracle — The Event Dispatch Thread</a>. Bài học này chỉ tóm tắt đủ để bạn bắt tay vào code; hai trang trên là nơi giải thích đầy đủ "vì sao".
+</div>
+
+<h2>1. Vì sao Swing "khó tính" về luồng (thread)?</h2>
+<p>
+  Hầu hết các phương thức của component Swing (<code>JFrame</code>, <code>JButton</code>, <code>JTable</code>, ...) <strong>không an toàn khi gọi từ nhiều luồng cùng lúc</strong>. Nếu hai luồng cùng sửa một component, kết quả có thể sai lệch hoặc treo ứng dụng một cách rất khó debug. Vì vậy Swing quy định: toàn bộ việc tạo/sửa component phải chạy trên một luồng riêng gọi là <strong>Event Dispatch Thread (EDT)</strong>.
+</p>
+<p>
+  Tin tốt: sau bước khởi động, bạn hiếm khi phải chủ động nghĩ về EDT nữa. Mọi nút bấm, mọi lựa chọn trong bảng đều tự động chạy callback trên EDT rồi. Nơi <em>duy nhất</em> bạn chủ động nhảy vào EDT là lúc chương trình khởi động, trong <code>main</code>:
+</p>
+<pre><code>public class MyApp {
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -&gt; {
+            // Toàn bộ code tạo UI đầu tiên nằm ở đây, không phải ngoài invokeLater
+            JFrame frame = new MyFirstWindow();
+            frame.setVisible(true);
+        });
+    }
+}</code></pre>
+<p><code>invokeLater</code> xếp đoạn code của bạn vào hàng đợi của EDT thay vì chạy ngay trên luồng <code>main</code> — đó là cách "bàn giao" việc tạo UI cho đúng luồng. Đây là khuôn mẫu chuẩn cho <code>main</code> của <em>bất kỳ</em> chương trình Swing nào, không riêng ứng dụng nào cả.</p>
+
+<h2>2. Khung <code>JFrame</code> tối thiểu</h2>
+<pre><code>JFrame frame = new JFrame("Tiêu đề cửa sổ");
+frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+frame.setSize(1000, 700);
+frame.setLocationRelativeTo(null); // căn giữa màn hình
+frame.add(new JLabel("Xin chào Swing!"));
+frame.setVisible(true); // luôn là dòng cuối</code></pre>
+<div class="box box-pitfall">
+  <span class="label">Lỗi hay gặp</span>
+  Gọi <code>setVisible(true)</code> <em>trước khi</em> thêm hết component, hoặc quên nó luôn (cửa sổ không bao giờ hiện). Thứ tự đúng: cấu hình xong xuôi → add component → <code>setVisible(true)</code> cuối cùng.
+</div>
+
+<h2>3. Áp dụng vào một ứng dụng thật</h2>
+<p>
+  Bất kỳ ứng dụng Swing nhiều màn hình nào — kể cả app bạn đang xây — cũng bắt đầu từ đúng hai khối kiến thức ở trên: một <code>main</code> bọc trong <code>invokeLater</code> để mở cửa sổ đầu tiên (thường là màn hình đăng nhập hoặc màn hình chính), và bên trong cửa sổ đó là một khung <code>JFrame</code> cấu hình đúng thứ tự như mục 2. Từ đây, việc "có nhiều màn hình" chỉ là thêm layout/component vào bên trong cùng một khung này — bài học sau sẽ nói kỹ hơn về cách bố cục nội dung bên trong (<code>BorderLayout</code>, <code>JPanel</code>) và cách chuyển qua lại giữa nhiều màn hình (<code>CardLayout</code>).
+</p>
+
+<h2>Kiểm tra nhanh</h2>
+
+<div class="quiz">
+  <p class="q">1. Tại sao mọi thao tác với component Swing phải chạy trên Event Dispatch Thread (EDT)?</p>
+  <label><input type="radio" name="q1" data-correct="true"> Vì component Swing không an toàn luồng</label>
+  <label><input type="radio" name="q1" data-correct="false"> Vì cơ sở dữ liệu rất chậm</label>
+  <label><input type="radio" name="q1" data-correct="false"> Vì Java không hỗ trợ đa luồng</label>
+  <label><input type="radio" name="q1" data-correct="false"> Vì giao diện cần internet ổn định</label>
+  <div class="feedback correct">Đúng — component Swing không thread-safe, gọi từ nhiều luồng dễ gây lỗi khó tái hiện.</div>
+  <div class="feedback incorrect">Chưa đúng. Gợi ý: vấn đề nằm ở chính component Swing, không phải mạng hay Java nói chung.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">2. Thêm một <code>JTable</code> thẳng vào <code>JPanel</code> mà không bọc trong <code>JScrollPane</code> thì điều gì xảy ra?</p>
+  <label><input type="radio" name="q2" data-correct="true"> Bảng mất luôn dòng tiêu đề</label>
+  <label><input type="radio" name="q2" data-correct="false"> Chương trình sẽ dừng và crash</label>
+  <label><input type="radio" name="q2" data-correct="false"> Dữ liệu hiển thị bị đảo lộn</label>
+  <label><input type="radio" name="q2" data-correct="false"> Cột bảng tự động đổi màu</label>
+  <div class="feedback correct">Đúng — không có lỗi, không crash, bảng vẫn chạy được, nhưng dòng tiêu đề cột biến mất.</div>
+  <div class="feedback incorrect">Chưa đúng — không có crash hay lỗi dữ liệu nào cả, chỉ là thiếu mất một phần hiển thị.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">3. Sau khi thay đổi dữ liệu bên trong một <code>AbstractTableModel</code> tự viết, quên gọi phương thức nào sẽ khiến <code>JTable</code> không bao giờ cập nhật lại giao diện?</p>
+  <label><input type="radio" name="q3" data-correct="false"> repaintTableModel()</label>
+  <label><input type="radio" name="q3" data-correct="true"> fireTableDataChanged()</label>
+  <label><input type="radio" name="q3" data-correct="false"> refreshTableView()</label>
+  <label><input type="radio" name="q3" data-correct="false"> updateTableRows()</label>
+  <div class="feedback correct">Đúng — đây là phương thức thật của <code>AbstractTableModel</code>, ba lựa chọn còn lại không tồn tại.</div>
+  <div class="feedback incorrect">Chưa đúng — ba phương thức kia không tồn tại trong Swing, chỉ là tên gây nhiễu.</div>
+</div>
+
+<h2>Bài tập thực hành</h2>
+<p>Viết code thật, biên dịch và chạy thật — không chỉ đọc rồi lướt qua.</p>
+<ol>
+  <li>Tạo một file <code>MyFirstWindow.java</code> ở bất kỳ đâu bạn muốn thử nghiệm, biên dịch bằng <code>javac</code> và chạy bằng <code>java</code> trực tiếp (không cần Maven/Spring cho bài tập này).</li>
+  <li>Viết một <code>main</code> method: bọc toàn bộ code tạo UI trong <code>SwingUtilities.invokeLater(() -&gt; { ... })</code> như mục 1.</li>
+  <li>Bên trong, tạo một <code>JFrame</code> với tiêu đề <em>"Bài tập 1"</em>, kích thước 400x300, căn giữa màn hình, và thêm một <code>JLabel</code> hiển thị tên của bạn.</li>
+  <li>Cố ý phạm lỗi mục 2 trước: gọi <code>setVisible(true)</code> <strong>trước</strong> khi thêm <code>JLabel</code>, chạy thử, quan sát điều gì xảy ra (hoặc không xảy ra). Sau đó sửa lại đúng thứ tự và chạy lại để thấy sự khác biệt.</li>
+  <li>Tự kiểm tra (không cần ai chấm):
+    <ul>
+      <li>[ ] Cửa sổ hiện đúng giữa màn hình, đúng kích thước 400x300.</li>
+      <li>[ ] Đóng cửa sổ (nút X) thì chương trình thoát hẳn (do <code>EXIT_ON_CLOSE</code>).</li>
+      <li>[ ] Bạn giải thích được bằng lời của mình: tại sao đoạn code UI nằm trong <code>invokeLater</code> chứ không gọi thẳng trong <code>main</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Áp dụng vào project của bạn:</strong> mở file nơi ứng dụng của bạn khởi động cửa sổ đầu tiên (thường là nơi chứa <code>public static void main</code>) và kiểm tra: nó có đang bọc việc tạo UI trong <code>invokeLater</code> đúng như mục 1 không? Nếu ứng dụng chưa tồn tại, giữ nguyên đoạn code bạn vừa viết — đó chính là khung sườn bạn sẽ dùng.</li>
+</ol>
+
+<div class="box box-ask">
+  <span class="label">Đừng ngại hỏi</span>
+  Nếu cửa sổ không hiện, hiện sai chỗ, hoặc bạn không chắc lỗi nằm ở đâu — cứ dán nguyên đoạn code và hỏi trực tiếp trợ lý (Claude) trong phiên làm việc. Debug Swing lúc mới học rất dễ nản, hỏi ngay khi vướng sẽ nhanh hơn nhiều so với tự mò.
+</div>
+
+<div class="next-lesson">
+  <strong>Tiếp theo:</strong> <a href="0002-layout-va-jpanel.html">Bài 2 — Layout Manager và cách ghép JPanel</a> — cách bố cục nội dung bên trong khung <code>JFrame</code> bạn vừa học.
+</div>
+
+</main>

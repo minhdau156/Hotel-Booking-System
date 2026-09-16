@@ -1,0 +1,135 @@
+<title>JTable và TableModel</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js" defer></script>
+<main>
+
+<p class="crumbs"><a href="0002-layout-va-jpanel.html">← Bài 2</a> · Bài học 3 / 6 · <a href="../reference/swing-cheatsheet.html">Sổ tay Swing</a> · <a href="0004-listener-va-dialog.html">Bài 4 →</a></p>
+
+<h1>JTable và AbstractTableModel</h1>
+<p class="subtitle">Hiển thị danh sách dữ liệu dạng bảng — có lẽ là component bạn sẽ dùng nhiều nhất trong một app quản lý dữ liệu.</p>
+
+<div class="box box-source">
+  <span class="label">Nguồn chính</span>
+  Đọc trước: <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/table.html">Oracle — How to Use Tables</a>. Tham khảo API đầy đủ: <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.desktop/javax/swing/table/AbstractTableModel.html">AbstractTableModel</a>.
+</div>
+
+<h2>1. Ý tưởng cốt lõi: JTable không giữ dữ liệu</h2>
+<p>
+  Đây là điều gây nhầm lẫn nhất khi mới học <code>JTable</code>: bản thân nó <strong>không lưu trữ gì cả</strong>. Nó chỉ là một "khung vẽ" — mọi dữ liệu thực sự nằm trong một đối tượng riêng gọi là <code>TableModel</code>, mà <code>JTable</code> liên tục hỏi: "có bao nhiêu dòng?", "có bao nhiêu cột?", "giá trị ở dòng X cột Y là gì?".
+</p>
+<pre><code>JTable table = new JTable(myModel); // myModel implements TableModel</code></pre>
+<p>Bạn hiếm khi cài đặt trực tiếp interface <code>TableModel</code> (có quá nhiều phương thức) — thay vào đó, kế thừa lớp <code>AbstractTableModel</code>, lớp này đã cài sẵn phần "nồi hơi" và chỉ bắt bạn cài 4 phương thức.</p>
+
+<h2>2. Viết một TableModel của riêng bạn</h2>
+<pre><code>public class PersonTableModel extends AbstractTableModel {
+    private List&lt;Person&gt; rows = new ArrayList&lt;&gt;();
+    private final String[] columns = {"Tên", "Tuổi", "Email"};
+
+    public void setRows(List&lt;Person&gt; rows) {
+        this.rows = rows;
+        fireTableDataChanged(); // báo cho JTable biết "dữ liệu đổi rồi, vẽ lại đi"
+    }
+
+    public Person getRowAt(int index) { return rows.get(index); }
+
+    @Override public int getRowCount() { return rows.size(); }
+    @Override public int getColumnCount() { return columns.length; }
+    @Override public String getColumnName(int col) { return columns[col]; }
+    @Override public Object getValueAt(int row, int col) {
+        Person p = rows.get(row);
+        return switch (col) {
+            case 0 -&gt; p.getName();
+            case 1 -&gt; p.getAge();
+            case 2 -&gt; p.getEmail();
+            default -&gt; null;
+        };
+    }
+}</code></pre>
+<p>4 phương thức bắt buộc, không hơn không kém: <code>getRowCount</code>, <code>getColumnCount</code>, <code>getColumnName</code>, <code>getValueAt</code>. Phương thức <code>getRowAt</code> ở trên không phải một phần của <code>TableModel</code> — đó là tiện ích bạn tự thêm để sau này biết dòng đang chọn ứng với đối tượng nào trong danh sách gốc.</p>
+
+<h2>3. Gắn vào giao diện</h2>
+<pre><code>PersonTableModel model = new PersonTableModel();
+JTable table = new JTable(model);
+panel.add(new JScrollPane(table), BorderLayout.CENTER); // nhớ bọc JScrollPane!
+
+// Khi có dữ liệu mới từ đâu đó (gọi API, đọc DB, ...):
+model.setRows(fetchedPeople);</code></pre>
+
+<h2>4. Biết người dùng đang chọn dòng nào</h2>
+<pre><code>int selectedRow = table.getSelectedRow(); // -1 nếu chưa chọn gì
+if (selectedRow &gt;= 0) {
+    Person selected = model.getRowAt(selectedRow);
+    // dùng selected để mở form sửa, xoá, v.v.
+}</code></pre>
+<div class="box box-pitfall">
+  <span class="label">Lỗi hay gặp</span>
+  Nếu bảng cho phép sắp xếp (<code>table.setAutoCreateRowSorter(true)</code>), <code>getSelectedRow()</code> trả về chỉ số theo <em>thứ tự hiển thị</em>, có thể khác thứ tự trong danh sách gốc. Khi đó phải đổi qua chỉ số gốc bằng <code>table.convertRowIndexToModel(selectedRow)</code> trước khi tra vào <code>rows</code>.
+</div>
+<div class="box box-pitfall">
+  <span class="label">Lỗi hay gặp</span>
+  Quên gọi <code>fireTableDataChanged()</code> (hoặc các biến thể <code>fireTableRowsInserted</code>/<code>fireTableRowsDeleted</code>) sau khi đổi dữ liệu → bảng đứng yên vĩnh viễn dù dữ liệu bên dưới đã đổi. Đây là lỗi phổ biến số một với <code>JTable</code>.
+</div>
+
+<h2>5. Có cần viết tay mọi lần không?</h2>
+<p>
+  Swing có sẵn <code>DefaultTableModel</code> — nhận thẳng <code>Object[][]</code>/<code>Vector</code>, không cần viết lớp con. Nhanh cho việc thử nghiệm, nhưng mất kiểu dữ liệu (mọi thứ là <code>Object</code>) và không tự nhiên khi dữ liệu gốc là danh sách các object có kiểu rõ ràng (ví dụ <code>List&lt;Person&gt;</code>). Với ứng dụng thật thao tác trên các đối tượng nghiệp vụ, viết một lớp con <code>AbstractTableModel</code> tổng quát (dùng generic <code>&lt;T&gt;</code>, nhận vào danh sách tên cột + cách lấy giá trị từng cột) thường đáng công hơn — viết một lần, dùng lại cho mọi bảng trong ứng dụng.
+</p>
+
+<h2>Kiểm tra nhanh</h2>
+
+<div class="quiz">
+  <p class="q">1. <code>JTable</code> tự nó có lưu trữ dữ liệu hay không?</p>
+  <label><input type="radio" name="q1" data-correct="true"> Không, nó chỉ hiển thị theo model</label>
+  <label><input type="radio" name="q1" data-correct="false"> Có, nó lưu trong một mảng riêng</label>
+  <label><input type="radio" name="q1" data-correct="false"> Có, nhưng chỉ lưu tạm trong RAM</label>
+  <label><input type="radio" name="q1" data-correct="false"> Không, nó lưu trực tiếp lên đĩa</label>
+  <div class="feedback correct">Đúng — <code>JTable</code> chỉ là lớp vẽ, dữ liệu thật nằm hoàn toàn trong <code>TableModel</code>.</div>
+  <div class="feedback incorrect">Chưa đúng — nhớ lại mục 1: đây là điểm dễ nhầm nhất khi mới học <code>JTable</code>.</div>
+</div>
+
+<div class="quiz">
+  <p class="q">2. Phương thức nào của <code>TableModel</code> quyết định số cột được hiển thị?</p>
+  <label><input type="radio" name="q2" data-correct="true"> getColumnCount()</label>
+  <label><input type="radio" name="q2" data-correct="false"> getRowCount()</label>
+  <label><input type="radio" name="q2" data-correct="false"> getColumnName()</label>
+  <label><input type="radio" name="q2" data-correct="false"> getValueAt()</label>
+  <div class="feedback correct">Đúng — đây là 1 trong 4 phương thức bắt buộc; <code>getRowCount</code> quyết định số dòng, không phải số cột.</div>
+  <div class="feedback incorrect">Chưa đúng — đọc kỹ tên phương thức: nó cần khớp với "cột" và "đếm số lượng".</div>
+</div>
+
+<div class="quiz">
+  <p class="q">3. Muốn biết đối tượng nào (trong danh sách gốc) tương ứng với dòng người dùng vừa chọn trên bảng, cách làm đúng là gì?</p>
+  <label><input type="radio" name="q3" data-correct="true"> Gọi getSelectedRow rồi tra lại danh sách</label>
+  <label><input type="radio" name="q3" data-correct="false"> Gọi getValueAt với toạ độ cố định</label>
+  <label><input type="radio" name="q3" data-correct="false"> Gọi getColumnCount rồi trừ luôn đi một</label>
+  <label><input type="radio" name="q3" data-correct="false"> Gọi getColumnName rồi so sánh tên chuỗi</label>
+  <div class="feedback correct">Đúng — <code>table.getSelectedRow()</code> cho chỉ số dòng, dùng nó để tra vào danh sách gốc (qua một phương thức tiện ích như <code>getRowAt</code>).</div>
+  <div class="feedback incorrect">Chưa đúng — các phương thức kia không liên quan đến việc "dòng nào đang được chọn".</div>
+</div>
+
+<h2>Bài tập thực hành</h2>
+<ol>
+  <li>Định nghĩa một lớp đơn giản <code>Book</code> (title, author, year — cứ 3 field bất kỳ bạn thích).</li>
+  <li>Viết <code>BookTableModel extends AbstractTableModel</code> hiển thị danh sách <code>Book</code>, đúng theo khuôn mẫu mục 2.</li>
+  <li>Dựng một cửa sổ: <code>JTable</code> bọc <code>JScrollPane</code> ở giữa, một nút "In sách đã chọn" ở dưới. Nút này, khi bấm, lấy dòng đang chọn qua <code>getSelectedRow()</code> và in tên sách ra console (dùng <code>System.out.println</code> — Bài 4 sẽ thay bằng dialog thật).</li>
+  <li>Nạp sẵn 4-5 quyển sách mẫu vào model lúc khởi động bằng <code>setRows(...)</code>.</li>
+  <li>Tự kiểm tra:
+    <ul>
+      <li>[ ] Bảng hiện đủ tiêu đề cột và dữ liệu ngay khi mở cửa sổ.</li>
+      <li>[ ] Bấm nút khi <em>chưa</em> chọn dòng nào không làm chương trình crash (kiểm tra <code>selectedRow &gt;= 0</code> trước khi dùng).</li>
+      <li>[ ] Bấm nút khi đã chọn một dòng in đúng tên sách của dòng đó, không phải dòng đầu tiên cố định.</li>
+    </ul>
+  </li>
+  <li><strong>Áp dụng vào project của bạn:</strong> với bất kỳ danh sách dữ liệu nào project cần hiển thị (khách hàng, sản phẩm, đơn hàng, ...), đây chính xác là khuôn mẫu bạn sẽ lặp lại: một lớp <code>XyzTableModel</code> theo mục 2, một <code>JTable</code> + <code>JScrollPane</code> theo mục 3. Viết đúng một lần, hiểu rõ, rồi sao chép/điều chỉnh cho từng loại dữ liệu.</li>
+</ol>
+
+<div class="box box-ask">
+  <span class="label">Đừng ngại hỏi</span>
+  Nếu bảng hiện trống trơn dù bạn chắc chắn đã nạp dữ liệu, hoặc <code>getValueAt</code> ném <code>IndexOutOfBoundsException</code>, cứ dán nguyên lớp <code>TableModel</code> của bạn ra để được soát lỗi.
+</div>
+
+<div class="next-lesson">
+  <strong>Tiếp theo:</strong> <a href="0004-listener-va-dialog.html">Bài 4 — Event Listener và JOptionPane</a> — biến nút "In sách đã chọn" thành nút thật sự làm được việc gì đó với người dùng, thay vì chỉ in ra console.
+</div>
+
+</main>

@@ -1,0 +1,211 @@
+/* Shared stylesheet for the Swing teaching workspace — lessons/ and reference/ both link this. */
+
+:root {
+  --ink: #1a1a1a;
+  --ink-soft: #4a4a4a;
+  --paper: #fdfcf9;
+  --paper-raised: #f4f1ea;
+  --rule: #d8d2c4;
+  --accent: #8a3324;
+  --accent-soft: #c8583f;
+  --code-bg: #f2eee3;
+  --code-border: #e0d9c6;
+  --good: #2f5d3a;
+  --max-width: 720px;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 18px; }
+
+body {
+  margin: 0;
+  padding: 3rem 1.5rem 6rem;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, "Noto Serif", serif;
+  line-height: 1.6;
+}
+
+main {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+h1, h2, h3 {
+  font-family: "Iowan Old Style", Georgia, "Noto Serif", serif;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+h1 {
+  font-size: 2rem;
+  margin: 0 0 0.25rem;
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: var(--ink-soft);
+  font-style: italic;
+  margin: 0 0 2rem;
+}
+
+h2 {
+  font-size: 1.35rem;
+  margin-top: 2.5rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.3rem;
+}
+
+h3 {
+  font-size: 1.1rem;
+  margin-top: 1.75rem;
+}
+
+p { margin: 1em 0; }
+
+a { color: var(--accent); text-decoration-color: var(--accent-soft); }
+a:hover { color: var(--accent-soft); }
+
+code {
+  font-family: "SF Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-left: 4px solid var(--accent-soft);
+  border-radius: 4px;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+pre code { background: none; padding: 0; }
+
+ul, ol { padding-left: 1.4em; }
+li { margin: 0.4em 0; }
+
+/* --- Callout boxes --- */
+.box {
+  margin: 1.75rem 0;
+  padding: 1rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+  background: var(--paper-raised);
+}
+
+.box-source {
+  border-left: 4px solid var(--accent);
+}
+.box-source .label {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.box-pitfall {
+  border-left: 4px solid var(--accent-soft);
+}
+.box-pitfall .label {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--accent-soft);
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.box-ask {
+  border-left: 4px solid var(--good);
+  font-size: 0.95rem;
+}
+.box-ask .label {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--good);
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+/* --- Quiz widget --- */
+.quiz {
+  margin: 1.75rem 0;
+  padding: 1.25rem;
+  border: 1px dashed var(--accent-soft);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.quiz .q { font-weight: 700; margin-bottom: 0.75rem; }
+.quiz label {
+  display: block;
+  padding: 0.45em 0.7em;
+  margin: 0.35em 0;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--paper-raised);
+}
+.quiz label:hover { border-color: var(--accent-soft); }
+.quiz input[type="radio"] { margin-right: 0.6em; }
+.quiz .feedback {
+  display: none;
+  margin-top: 0.75rem;
+  padding: 0.6em 0.8em;
+  border-radius: 4px;
+  font-size: 0.92rem;
+}
+.quiz .feedback.shown { display: block; }
+.quiz .feedback.correct { background: #e5efe6; color: var(--good); }
+.quiz .feedback.incorrect { background: #f6e6e2; color: var(--accent); }
+
+/* --- Table-of-contents style nav --- */
+.crumbs {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-bottom: 1.5rem;
+}
+.crumbs a { color: var(--ink-soft); }
+
+.next-lesson {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 3px solid var(--accent);
+  font-size: 0.95rem;
+}
+
+/* --- Reference doc specific --- */
+table.ref {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.9rem;
+}
+table.ref th, table.ref td {
+  text-align: left;
+  padding: 0.5em 0.7em;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+table.ref th { border-bottom: 2px solid var(--ink); }
+
+@media print {
+  body { padding: 0; font-size: 12pt; }
+  .box-ask { display: none; }
+  a { color: inherit; text-decoration: none; }
+  pre { border: 1px solid #999; }
+}

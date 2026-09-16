@@ -1,0 +1,171 @@
+<title>Sổ tay Swing</title>
+<link rel="stylesheet" href="../assets/style.css">
+<main>
+
+<p class="crumbs">
+  <a href="../lessons/0001-cua-so-swing-dau-tien.html">Bài 1</a> ·
+  <a href="../lessons/0002-layout-va-jpanel.html">Bài 2</a> ·
+  <a href="../lessons/0003-jtable-va-tablemodel.html">Bài 3</a> ·
+  <a href="../lessons/0004-listener-va-dialog.html">Bài 4</a> ·
+  <a href="../lessons/0005-combobox-va-spinner.html">Bài 5</a> ·
+  <a href="../lessons/0006-cardlayout.html">Bài 6</a>
+</p>
+
+<h1>Sổ tay Swing</h1>
+<p class="subtitle">Kiến thức Swing cốt lõi — tra cứu nhanh, không cần đọc tuần tự.</p>
+
+<div class="box box-source">
+  <span class="label">Nguồn</span>
+  Toàn bộ nội dung tổng hợp từ tài liệu chính thức của Oracle (liên kết đi kèm mỗi mục). Xem <code>RESOURCES.md</code> để có danh sách đầy đủ kèm ghi chú.
+</div>
+
+<h2 id="nen-tang">1. Luật nền tảng</h2>
+<ul>
+  <li><strong>Mọi thao tác với component Swing phải chạy trên Event Dispatch Thread (EDT).</strong> Component Swing không an toàn luồng (not thread-safe) — sửa chúng từ nhiều luồng cùng lúc gây lỗi khó tái hiện. Trong một chương trình Swing bình thường, code trong các listener (nút bấm, chọn dòng bảng...) đã chạy sẵn trên EDT; bạn chỉ cần chủ động nhảy vào EDT một lần duy nhất lúc khởi động, bằng <code>SwingUtilities.invokeLater(...)</code>. (<a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Oracle: The Event Dispatch Thread</a>)</li>
+  <li><strong>Việc chạy lâu (gọi mạng, gọi DB, tính toán nặng) không nên chạy trực tiếp trên EDT</strong> — nó sẽ làm UI "đơ" vì EDT bận xử lý việc đó thay vì vẽ lại màn hình. Với việc nhỏ/nhanh thì gọi thẳng trong listener vẫn ổn; việc thật sự nặng nên đưa ra luồng nền (ví dụ <code>SwingWorker</code>) rồi cập nhật UI trở lại qua <code>invokeLater</code>.</li>
+  <li><strong>Mọi <code>JTable</code> phải được bọc trong <code>JScrollPane</code>.</strong> Thêm <code>JTable</code> trần vào panel sẽ không hiện cả dòng tiêu đề cột — lỗi phổ biến nhất khi mới học Swing.</li>
+  <li><strong>Một màn hình thường là một lớp con của <code>JPanel</code>.</strong> Dựng các thành phần con trong constructor, sắp xếp bằng <code>LayoutManager</code>, và để lộ ra 1-2 phương thức public (ví dụ <code>refresh()</code>) để nơi khác gọi khi dữ liệu thay đổi.</li>
+</ul>
+
+<h2 id="jframe">2. <code>JFrame</code> và vòng đời cửa sổ</h2>
+<p>Nguồn: <a href="https://docs.oracle.com/javase/tutorial/uiswing/start/index.html">Oracle: Getting Started with Swing</a></p>
+<pre><code>SwingUtilities.invokeLater(() -&gt; {
+    JFrame frame = new JFrame("Tiêu đề");
+    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    frame.setSize(1000, 700);
+    frame.setLocationRelativeTo(null); // căn giữa màn hình
+    frame.add(mainPanel);
+    frame.setVisible(true); // luôn gọi cuối cùng
+});</code></pre>
+<table class="ref">
+  <tr><th>Phương thức</th><th>Ý nghĩa</th></tr>
+  <tr><td><code>setDefaultCloseOperation</code></td><td>Hành vi khi bấm nút X. <code>EXIT_ON_CLOSE</code> thoát cả ứng dụng; <code>DISPOSE_ON_CLOSE</code> chỉ đóng cửa sổ đó (dùng khi bạn có nhiều cửa sổ và tự quản lý vòng đời).</td></tr>
+  <tr><td><code>setSize(w, h)</code></td><td>Kích thước cửa sổ theo pixel.</td></tr>
+  <tr><td><code>setLocationRelativeTo(null)</code></td><td>Căn giữa màn hình. Gọi sau <code>setSize</code>.</td></tr>
+  <tr><td><code>setVisible(true)</code></td><td>Luôn là dòng cuối cùng — trước đó cửa sổ chưa hiển thị dù bạn đã thêm component.</td></tr>
+</table>
+<p><code>JDialog</code> hoạt động tương tự <code>JFrame</code> nhưng luôn gắn với một cửa sổ cha, và thường được tạo gián tiếp qua <code>JOptionPane</code> (mục 6) thay vì tự tay dựng.</p>
+
+<h2 id="layout">3. Layout Manager</h2>
+<p>Nguồn: <a href="https://docs.oracle.com/javase/tutorial/uiswing/layout/visual.html">Oracle: A Visual Guide to Layout Managers</a> · <a href="https://docs.oracle.com/javase/tutorial/uiswing/layout/layoutlist.html">Oracle: How to Use Various Layout Managers</a></p>
+<table class="ref">
+  <tr><th>Layout</th><th>Dùng khi nào</th><th>Ghi chú</th></tr>
+  <tr><td><code>BorderLayout</code></td><td>Bố cục 5 vùng: <code>NORTH</code>/<code>SOUTH</code>/<code>EAST</code>/<code>WEST</code>/<code>CENTER</code>. Rất hay dùng làm khung ngoài cùng của một màn hình.</td><td>Mỗi vùng chỉ chứa 1 component — cần nhiều thì bọc trong một <code>JPanel</code> con có layout riêng.</td></tr>
+  <tr><td><code>FlowLayout</code></td><td>Xếp component theo hàng ngang, tự xuống dòng khi hết chỗ.</td><td>Layout mặc định của <code>JPanel</code> khi không set gì khác.</td></tr>
+  <tr><td><code>GridLayout(rows, cols, hgap, vgap)</code></td><td>Lưới ô đều nhau — hợp cho form "nhãn + ô nhập".</td><td>Mọi ô có <strong>cùng kích thước</strong>, kém linh hoạt hơn <code>GridBagLayout</code>.</td></tr>
+  <tr><td><code>BoxLayout(axis)</code></td><td>Xếp chồng theo một trục (dọc hoặc ngang), các component có thể khác kích thước.</td><td><code>Box.createVerticalStrut(n)</code>/<code>createHorizontalStrut(n)</code> để chèn khoảng cách.</td></tr>
+  <tr><td><code>CardLayout</code></td><td>Nhiều panel dùng chung một vùng hiển thị, chỉ một cái hiện tại một thời điểm — dùng cho điều hướng nhiều màn hình.</td><td>Xem mục 9.</td></tr>
+  <tr><td><code>GridBagLayout</code></td><td>Căn chỉnh phức tạp, linh hoạt nhất nhưng cũng rườm rà nhất.</td><td>Chỉ nên dùng khi các layout đơn giản hơn không đáp ứng đủ.</td></tr>
+</table>
+
+<h2 id="components">4. Bảng tra component thường dùng</h2>
+<table class="ref">
+  <tr><th>Component</th><th>Dùng để</th><th>Snippet</th></tr>
+  <tr><td><code>JLabel</code></td><td>Nhãn tĩnh, không tương tác</td><td><code>new JLabel("Tên")</code></td></tr>
+  <tr><td><code>JTextField</code></td><td>Nhập văn bản 1 dòng</td><td><code>new JTextField(20)</code> — 20 là độ rộng ước lượng theo ký tự</td></tr>
+  <tr><td><code>JPasswordField</code></td><td>Nhập mật khẩu (ẩn ký tự)</td><td><code>new String(field.getPassword())</code> để lấy giá trị</td></tr>
+  <tr><td><code>JButton</code></td><td>Nút bấm, gắn <code>ActionListener</code></td><td><code>btn.addActionListener(e -&gt; ...)</code></td></tr>
+  <tr><td><code>JCheckBox</code> / <code>JRadioButton</code></td><td>Chọn bật/tắt, hoặc chọn 1-trong-nhiều (nhóm bằng <code>ButtonGroup</code>)</td><td><code>checkbox.isSelected()</code></td></tr>
+  <tr><td><code>JComboBox&lt;T&gt;</code></td><td>Chọn 1 trong danh sách có sẵn</td><td>xem mục 7</td></tr>
+  <tr><td><code>JSpinner</code></td><td>Chọn số hoặc ngày có bước tăng/giảm</td><td>xem mục 8</td></tr>
+  <tr><td><code>JTable</code> + <code>JScrollPane</code></td><td>Hiển thị danh sách dạng bảng</td><td>xem mục 5</td></tr>
+  <tr><td><code>JOptionPane</code></td><td>Hộp thoại thông báo/xác nhận/nhập liệu nhanh</td><td>xem mục 6</td></tr>
+</table>
+
+<h2 id="jtable">5. <code>JTable</code> + <code>TableModel</code></h2>
+<p>Nguồn: <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/table.html">Oracle: How to Use Tables</a> · <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.desktop/javax/swing/table/AbstractTableModel.html">Oracle: AbstractTableModel API</a></p>
+<p><code>JTable</code> tự nó <strong>không chứa dữ liệu</strong> — nó chỉ vẽ những gì một <code>TableModel</code> cung cấp. Cách phổ biến nhất là viết một lớp con kế thừa <code>AbstractTableModel</code>, chỉ cần cài đặt 4 phương thức:</p>
+<pre><code>public class PersonTableModel extends AbstractTableModel {
+    private List&lt;Person&gt; rows = new ArrayList&lt;&gt;();
+    private final String[] columns = {"Tên", "Tuổi"};
+
+    public void setRows(List&lt;Person&gt; rows) {
+        this.rows = rows;
+        fireTableDataChanged(); // QUÊN DÒNG NÀY = bảng không bao giờ cập nhật
+    }
+
+    @Override public int getRowCount() { return rows.size(); }
+    @Override public int getColumnCount() { return columns.length; }
+    @Override public String getColumnName(int col) { return columns[col]; }
+    @Override public Object getValueAt(int row, int col) {
+        Person p = rows.get(row);
+        return col == 0 ? p.getName() : p.getAge();
+    }
+}</code></pre>
+<div class="box box-pitfall">
+  <span class="label">Lỗi thường gặp</span>
+  Quên <code>fireTableDataChanged()</code> sau khi thay dữ liệu → bảng đứng yên dù dữ liệu đã đổi. Quên bọc <code>JScrollPane</code> → mất luôn hàng tiêu đề cột.
+</div>
+<p>Muốn biết dòng nào đang được chọn: <code>int row = table.getSelectedRow();</code> rồi lấy phần tử tương ứng trong danh sách dữ liệu gốc.</p>
+
+<h2 id="dialog">6. Hộp thoại: <code>JOptionPane</code></h2>
+<p>Nguồn: <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/dialog.html">Oracle: How to Make Dialogs</a></p>
+<table class="ref">
+  <tr><th>Việc cần làm</th><th>Cách gọi</th></tr>
+  <tr><td>Báo lỗi/thông báo</td><td><code>JOptionPane.showMessageDialog(parent, msg, "Error", JOptionPane.ERROR_MESSAGE)</code></td></tr>
+  <tr><td>Xác nhận Có/Không</td><td><code>JOptionPane.showConfirmDialog(parent, msg, "Confirm", JOptionPane.YES_NO_OPTION)</code> → trả về <code>int</code>, so sánh với <code>JOptionPane.YES_OPTION</code></td></tr>
+  <tr><td>Nhập nhanh 1 giá trị</td><td><code>JOptionPane.showInputDialog(parent, "Nhập tên:")</code> → trả về <code>String</code> (hoặc <code>null</code> nếu bấm Cancel)</td></tr>
+  <tr><td>Form nhiều trường, OK/Cancel</td><td>Đưa một <code>JPanel</code> (chứa nhiều <code>JTextField</code>/<code>JComboBox</code>) làm tham số <code>message</code>: <code>showConfirmDialog(parent, panel, title, OK_CANCEL_OPTION)</code></td></tr>
+</table>
+<p><code>JOptionPane</code> tự tạo và quản lý một <code>JDialog</code> phía sau — đây là cách nhanh nhất để có một hộp thoại mà không phải tự viết lớp con của <code>JDialog</code>.</p>
+
+<h2 id="combobox">7. <code>JComboBox&lt;T&gt;</code></h2>
+<p>Nguồn: <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/combobox.html">Oracle: How to Use Combo Boxes</a></p>
+<pre><code>JComboBox&lt;String&gt; combo = new JComboBox&lt;&gt;(new String[] {"Nhỏ", "Vừa", "Lớn"});
+String selected = (String) combo.getSelectedItem();
+combo.addActionListener(e -&gt; System.out.println("Đã chọn: " + combo.getSelectedItem()));</code></pre>
+<p>Khi phần tử là một đối tượng tự định nghĩa (không phải <code>String</code>), dropdown mặc định sẽ hiện <code>toString()</code> của nó — hoặc <code>ClassName@hashcode</code> nếu bạn chưa override. Cách đơn giản nhất là override <code>toString()</code> để trả về tên hiển thị; nếu không muốn đụng vào lớp model, gắn <code>combo.setRenderer(...)</code> tuỳ chỉnh.</p>
+
+<h2 id="spinner">8. <code>JSpinner</code></h2>
+<p>Nguồn: <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/spinner.html">Oracle: How to Use Spinners</a></p>
+<p><code>JSpinner</code> nhận một <code>SpinnerModel</code>, phổ biến nhất là 3 loại:</p>
+<table class="ref">
+  <tr><th>Model</th><th>Dùng cho</th></tr>
+  <tr><td><code>SpinnerNumberModel(value, min, max, step)</code></td><td>Chọn số trong khoảng, có bước nhảy</td></tr>
+  <tr><td><code>SpinnerDateModel()</code></td><td>Chọn ngày/giờ — Swing lõi không có lịch chọn ngày (date picker) riêng, đây là cách "gốc" gần nhất</td></tr>
+  <tr><td><code>SpinnerListModel(list)</code></td><td>Chọn 1 trong danh sách cố định, cuộn qua lại bằng nút mũi tên</td></tr>
+</table>
+<pre><code>JSpinner dateSpinner = new JSpinner(new SpinnerDateModel());
+dateSpinner.setEditor(new JSpinner.DateEditor(dateSpinner, "yyyy-MM-dd"));
+
+// Đọc giá trị ra LocalDate:
+Date raw = (Date) dateSpinner.getValue();
+LocalDate date = raw.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();</code></pre>
+
+<h2 id="cardlayout">9. Điều hướng nhiều màn hình: <code>CardLayout</code></h2>
+<p>Nguồn: <a href="https://docs.oracle.com/javase/tutorial/uiswing/layout/card.html">Oracle: How to Use CardLayout</a></p>
+<pre><code>CardLayout cardLayout = new CardLayout();
+JPanel content = new JPanel(cardLayout);
+
+content.add(panelA, "A");
+content.add(panelB, "B");
+
+cardLayout.show(content, "A"); // gọi lại bất cứ lúc nào để đổi màn hình đang hiện</code></pre>
+<p>Đây là cách chuẩn để làm ứng dụng "nhiều màn hình trong một cửa sổ" mà không cần mở <code>JFrame</code> mới mỗi lần chuyển màn hình.</p>
+
+<h2 id="events">10. Lắng nghe sự kiện (Event Listener)</h2>
+<p>Nguồn: <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/actionlistener.html">Oracle: How to Write an Action Listener</a> · <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/generalrules.html">Oracle: General Information about Writing Event Listeners</a></p>
+<table class="ref">
+  <tr><th>Tình huống</th><th>Interface</th><th>Ví dụ</th></tr>
+  <tr><td>Bấm nút / chọn combo box / Enter trong ô nhập</td><td><code>ActionListener</code></td><td><code>btn.addActionListener(e -&gt; doSomething())</code></td></tr>
+  <tr><td>Click chuột (kể cả double-click) trên một component bất kỳ</td><td><code>MouseListener</code> (thường dùng lớp <code>MouseAdapter</code> để khỏi phải cài đặt hết các phương thức của interface)</td><td><code>comp.addMouseListener(new MouseAdapter() { public void mouseClicked(MouseEvent e) { ... } })</code></td></tr>
+  <tr><td>Theo dõi dòng nào đang được chọn trong bảng/danh sách</td><td><code>ListSelectionListener</code></td><td><code>table.getSelectionModel().addListSelectionListener(e -&gt; ...)</code></td></tr>
+  <tr><td>Theo dõi nội dung ô nhập thay đổi theo từng ký tự gõ</td><td><code>DocumentListener</code></td><td>gắn qua <code>textField.getDocument().addDocumentListener(...)</code></td></tr>
+</table>
+<p>Nguyên tắc chung: hầu hết listener interface trong Swing chỉ có 1-3 phương thức trừu tượng, và Java cho phép dùng lambda khi interface chỉ có đúng 1 phương thức (functional interface) — <code>ActionListener</code> là ví dụ điển hình, còn <code>MouseListener</code> có 5 phương thức nên thường dùng <code>MouseAdapter</code> (lớp có sẵn cài đặt rỗng cho tất cả) rồi chỉ override cái mình cần.</p>
+
+<h2 id="checklist">11. Checklist trước khi coi một màn hình là "xong"</h2>
+<ul>
+  <li>Mọi <code>JTable</code> đã được bọc trong <code>JScrollPane</code>.</li>
+  <li>Mọi nút bấm đều có <code>addActionListener</code> gắn kèm.</li>
+  <li>Mọi thao tác đổi dữ liệu đều kết thúc bằng việc cập nhật lại UI (gọi lại <code>fireTableDataChanged()</code> hoặc <code>refresh()</code> tương đương).</li>
+  <li>Lỗi validate/exception được bắt và hiển thị cho người dùng qua dialog, không để lộ stack trace thô.</li>
+  <li>Nếu cần nhập ngày, cân nhắc <code>JSpinner</code> + <code>SpinnerDateModel</code> (mục 8) thay vì ô văn bản tự do dễ gõ sai định dạng.</li>
+</ul>
+
+<div class="box box-ask">
+  <span class="label">Đừng ngại hỏi</span>
+  Tài liệu này chỉ là bản tóm tắt — nếu chỗ nào chưa rõ, hoặc bạn gặp lỗi cụ thể khi code, cứ hỏi trực tiếp trợ lý (Claude) ngay trong phiên làm việc.
+</div>
+
+</main>
