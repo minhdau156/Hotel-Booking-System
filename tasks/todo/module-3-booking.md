@@ -4,26 +4,55 @@ Owner: teammate D. Depends on Module 1 (`tasks/todo/module-1-rooms.md`, specific
 
 - [ ] 3.1 `Reservation` model + `ReservationStatus` enum
   - Acceptance: POJO with `id, roomId, guestId, staffId, checkIn, checkOut, status, createdAt`; `ReservationStatus` = `BOOKED, CHECKED_IN, CHECKED_OUT, CANCELLED`.
+  - Steps:
+    - [ ] Create `ReservationStatus.java` enum with constants `BOOKED, CHECKED_IN, CHECKED_OUT, CANCELLED`.
+    - [ ] Create `Reservation.java` with fields `id, roomId, guestId, staffId, checkIn, checkOut, status, createdAt` (`checkIn`/`checkOut` as `LocalDate`, `createdAt` as `LocalDateTime`, `status` as `ReservationStatus`).
+    - [ ] Add a no-arg constructor (for building new instances before insert) and an all-args constructor (for row-mapping existing rows).
+    - [ ] Add getters for every field, and setters for every field except `id`/`createdAt` (set once, at creation).
   - Verify: compiles.
   - Dependencies: 0.1
   - Files: `src/main/java/com/hotel/model/Reservation.java`, `src/main/java/com/hotel/model/ReservationStatus.java`
 - [ ] 3.2 `ReservationDao` interface
   - Acceptance: CRUD + a conflict-check query method (e.g. `boolean hasConflict(roomId, checkIn, checkOut)`) + a joined listing method returning reservation rows enriched with room number + guest name.
+  - Steps:
+    - [ ] Declare `Optional<Reservation> findById(long id)`.
+    - [ ] Declare `List<Reservation> findAll()`.
+    - [ ] Declare `void save(Reservation reservation)` (insert-or-update; DAO impl decides based on whether `id` is set).
+    - [ ] Declare `boolean hasConflict(long roomId, LocalDate checkIn, LocalDate checkOut)`.
+    - [ ] Decide and declare the joined-listing row type (either a small `ReservationView` record/class with room number + guest name + dates + status, or reuse `Reservation` plus a separate lookup — pick `ReservationView` since Module 3's UI tasks (3.7) and Module 5 both need it) in the same package or a shared `dao`/`model` location.
+    - [ ] Declare `List<ReservationView> findActiveWithDetails()` (or similarly named) returning the joined rows for the active-reservations table.
   - Verify: compiles.
   - Dependencies: 3.1
   - Files: `src/main/java/com/hotel/dao/ReservationDao.java`
 - [ ] 3.3 `JdbcReservationDao` impl
   - Acceptance: implements 3.2; conflict-check and listing queries use real `JOIN`s per SPEC's SQL coverage goals.
+  - Steps:
+    - [ ] Write a `RowMapper<Reservation>` (or lambda) mapping the plain `reservations` row to `Reservation`.
+    - [ ] Write a separate `RowMapper<ReservationView>` mapping a joined result set (reservation columns + `rooms.room_number` + `guests.full_name`) to `ReservationView`.
+    - [ ] Implement `findById`/`findAll` with the plain row mapper.
+    - [ ] Implement `save` — `INSERT` when `id` is null/0, `UPDATE ... WHERE id = ?` otherwise, both with bound `PreparedStatement` params (no string concatenation).
+    - [ ] Implement `hasConflict` with the date-overlap `SELECT COUNT(*) ... WHERE room_id = ? AND check_out > ? AND check_in < ? AND status != 'CANCELLED'`-style query (exclude cancelled reservations from conflicting), returning `count > 0`.
+    - [ ] Implement `findActiveWithDetails` with a `JOIN reservations r ON r.room_id = rooms.id JOIN guests ON r.guest_id = guests.id` (filtered to non-`CHECKED_OUT`/non-`CANCELLED` statuses, or whatever "active" means for the UI) using the joined row mapper.
   - Verify: insert a reservation via raw SQL/data.sql, confirm `hasConflict` returns true for an overlapping range and false for a non-overlapping one; confirm the joined listing returns room number + guest name correctly.
   - Dependencies: 3.2, 0.3, 1.6 (Module 1), 2.3 (Module 2)
   - Files: `src/main/java/com/hotel/dao/JdbcReservationDao.java`
 - [ ] 3.4 `ReservationService` — create reservation
   - Acceptance: `@Transactional` method that re-checks availability (via `RoomService`/`ReservationDao`) then inserts, to close the race between search and booking.
+  - Steps:
+    - [ ] Create `ReservationService` class with `ReservationDao` (and `RoomDao`/`RoomService` if needed for status flips) injected via constructor.
+    - [ ] Write `create(long roomId, long guestId, long staffId, LocalDate checkIn, LocalDate checkOut)` method signature.
+    - [ ] Inside `create`, call `reservationDao.hasConflict(roomId, checkIn, checkOut)` first and throw/return a validation error if `true`.
+    - [ ] If no conflict, build a new `Reservation` (status `BOOKED`, `createdAt` = now) and call `reservationDao.save(...)`.
+    - [ ] Annotate `create` with `@Transactional` so the conflict-check + insert happen atomically.
   - Verify: create two overlapping reservations for the same room back-to-back through the service; the second is rejected.
   - Dependencies: 3.3, 1.7 (Module 1's `RoomService`)
   - Files: `src/main/java/com/hotel/service/ReservationService.java`
 - [ ] 3.5 `ReservationService` — check-in/check-out/cancel
   - Acceptance: state transition methods that update `reservations.status` and the corresponding `rooms.status` (e.g. check-in → room OCCUPIED, check-out/cancel → room AVAILABLE), each `@Transactional`.
+  - Steps:
+    - [ ] Write `checkIn(long reservationId)`: load the reservation, set status `CHECKED_IN`, save it, then set the linked room's status to `OCCUPIED` and save the room; annotate `@Transactional`.
+    - [ ] Write `checkOut(long reservationId)`: load the reservation, set status `CHECKED_OUT`, save it, then set the linked room's status to `AVAILABLE` and save the room; annotate `@Transactional` (this is also the hook Module 5's `BillingService` attaches to for invoice generation).
+    - [ ] Write `cancel(long reservationId)`: load the reservation, set status `CANCELLED`, save it, then set the linked room's status to `AVAILABLE` and save the room; annotate `@Transactional`.
   - Verify: check a booked reservation in, confirm room flips to OCCUPIED; check it out, confirm room flips back to AVAILABLE and reservation status is CHECKED_OUT.
   - Dependencies: 3.4
   - Files: `src/main/java/com/hotel/service/ReservationService.java` (same file as 3.4, additional methods)
@@ -31,11 +60,31 @@ Owner: teammate D. Depends on Module 1 (`tasks/todo/module-1-rooms.md`, specific
 
 - [ ] 3.6 `BookingPanel` — availability search + create form
   - Acceptance: `BorderLayout` panel. `NORTH`: search bar with two `JSpinner`s (check-in / check-out, per guide section 3, defaulting to today and tomorrow) and a "Search" button; `CENTER`: a second, smaller `JScrollPane`-wrapped `JTable` (its own `BaseTableModel<Room>`, columns Room Number / Type / Capacity) showing `RoomService.findAvailable(checkIn, checkOut)` results — reuse the spinners' current values, don't duplicate date fields. `SOUTH`: a "Book Selected Room" button, disabled until a row is selected (`table.getSelectionModel().addListSelectionListener(...)` to enable/disable it), which opens a `ReservationFormDialog`: pre-fills the chosen room + dates (read-only, since they came from the search), and adds a `JComboBox<Guest>` (populated from `guestService.findAll()`, relying on `Guest.toString()` returning the guest's name per guide section 4) — plus a small "New Guest" button next to the combo that opens Module 2's `GuestFormDialog.showCreate` and, on success, re-populates the combo and selects the new guest. On OK, calls `reservationService.create(...)`; on the availability-conflict error, shows it via `Dialogs.showError` (this can legitimately happen if someone else booked the room between search and click — that's exactly what 3.4's re-check guards against) rather than crashing.
+  - Steps:
+    - [ ] Create `BookingPanel extends JPanel`, `BorderLayout`, constructor takes `RoomService`/`ReservationService`/`GuestService`.
+    - [ ] Build the `NORTH` search bar: two `JSpinner`s with `SpinnerDateModel` (check-in defaulting to today, check-out defaulting to tomorrow, per swing-guide section 3) plus a "Search" `JButton`.
+    - [ ] Build the `CENTER` results table: its own `BaseTableModel<Room>` (columns Room Number / Type / Capacity) inside a `JScrollPane`.
+    - [ ] Wire the "Search" button's listener to read both spinners as `LocalDate`, call `roomService.findAvailable(checkIn, checkOut)`, and call `tableModel.setRows(...)`.
+    - [ ] Build the `SOUTH` "Book Selected Room" `JButton`, initially disabled.
+    - [ ] Add a `table.getSelectionModel().addListSelectionListener(...)` that enables the book button iff a row is selected.
+    - [ ] Create `ReservationFormDialog` as a static helper (same shape as `GuestFormDialog`): takes the selected `Room` + check-in/check-out dates (rendered as read-only labels, not editable fields, since they're already fixed by the search) and a `List<Guest>`.
+    - [ ] In `ReservationFormDialog`, build a `JComboBox<Guest>` populated from `guestService.findAll()`.
+    - [ ] Add a "New Guest" `JButton` next to the combo that calls `GuestFormDialog.showCreate(...)`; on success, re-fetch `guestService.findAll()`, rebuild the combo's items, and select the newly created guest.
+    - [ ] On dialog OK, call `reservationService.create(room.getId(), selectedGuest.getId(), currentUser.getId(), checkIn, checkOut)` inside a `try/catch` reporting conflicts via `Dialogs.showError`.
+    - [ ] Wire the "Book Selected Room" button's listener to open `ReservationFormDialog` for the selected row, and re-run the search (`refresh()`) on success so the booked room drops out of the results.
   - Verify: search a date range, confirm only available rooms show (compare against a room you've manually booked for overlapping dates via 0.6/manual SQL); create a reservation from a search result and confirm it's saved and the room drops out of a repeated search for the same dates.
   - Dependencies: 3.4, 1.7 (Module 1), 2.4 (Module 2's `GuestService`), 0.7, 0.8
   - Files: `src/main/java/com/hotel/ui/booking/BookingPanel.java`, `src/main/java/com/hotel/ui/booking/ReservationFormDialog.java`
 - [ ] 3.7 `ActiveReservationsPanel` — active reservations table + actions
   - Acceptance: `BorderLayout` panel; `CENTER`: `JScrollPane`-wrapped `JTable` via `BaseTableModel<ReservationView>` (whatever row type 3.3's joined listing returns — needs room number + guest name + dates + status columns, not just raw `Reservation` ids) populated from `reservationService`'s active-reservations listing; `SOUTH`: "Check In", "Check Out", and "Cancel" buttons, each disabled/enabled based on the selected row's current status (e.g. Check In only enabled when status is BOOKED, Check Out only when CHECKED_IN — grey out the rest rather than letting the user trigger an invalid transition and catch an exception). Each button calls the matching `ReservationService` method, wraps it in `try/catch` reporting via `Dialogs.showError`, then calls this panel's `refresh()` — and must also trigger `BookingPanel`'s room-search `refresh()` if it's currently showing stale results (simplest approach: have `BookingPanel` re-run its search whenever its card becomes visible again, rather than pushing a cross-panel refresh call).
+  - Steps:
+    - [ ] Create `ActiveReservationsPanel extends JPanel`, `BorderLayout`, constructor takes `ReservationService`.
+    - [ ] Build the `CENTER` table: `BaseTableModel<ReservationView>` (columns Room Number / Guest Name / Check-In / Check-Out / Status) inside a `JScrollPane`.
+    - [ ] Build the `SOUTH` bar with "Check In", "Check Out", "Cancel" `JButton`s.
+    - [ ] Add a `table.getSelectionModel().addListSelectionListener(...)` that recomputes each button's enabled state from the selected row's `status` (Check In only for `BOOKED`, Check Out only for `CHECKED_IN`, Cancel for `BOOKED`/`CHECKED_IN`).
+    - [ ] Wire each button's listener to call the matching `reservationService` transition method inside a `try/catch` reporting via `Dialogs.showError`, then call `refresh()`.
+    - [ ] Implement `refresh()`: re-fetch the active-reservations listing and call `tableModel.setRows(...)`.
+    - [ ] In `BookingPanel`, add a hook (e.g. override `addNotify()`, or a `MainFrame`-invoked callback when the Booking card is shown) that re-runs its room search so results don't go stale after a check-in/checkout changes room availability elsewhere.
   - Verify: full manual flow — create a reservation in 3.6, confirm it appears here as BOOKED with Check In enabled; check it in, confirm status flips to CHECKED_IN, room's status updates (spot-check via Module 1's `RoomPanel`), and Check Out becomes enabled while Check In disables; check it out and confirm the same for CHECKED_OUT.
   - Dependencies: 3.6, 3.5
   - Files: `src/main/java/com/hotel/ui/booking/ActiveReservationsPanel.java`

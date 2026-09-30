@@ -4,21 +4,47 @@ Owner: teammate B. No dependencies on other modules (only Task 0). See `tasks/pl
 
 - [ ] 2.1 `Guest` model
   - Acceptance: POJO with `id, fullName, phone, email, idNumber`.
+  - Steps:
+    - [ ] Create `Guest.java` in `src/main/java/com/hotel/model/`
+    - [ ] Add private fields: `id` (long), `fullName` (String), `phone` (String), `email` (String), `idNumber` (String)
+    - [ ] Add a no-arg constructor (needed so a form dialog can build a blank instance to fill in for "create")
+    - [ ] Add an all-args constructor
+    - [ ] Add getters for all fields
+    - [ ] Add setters for all fields
   - Verify: compiles.
   - Dependencies: 0.1 (`tasks/todo/task-0-scaffolding.md`)
   - Files: `src/main/java/com/hotel/model/Guest.java`
 - [ ] 2.2 `GuestDao` interface
   - Acceptance: CRUD + `List<Guest> search(String query)` (matches name or phone).
+  - Steps:
+    - [ ] Create `GuestDao.java` in `src/main/java/com/hotel/dao/`
+    - [ ] Declare `Optional<Guest> findById(long id)`
+    - [ ] Declare `List<Guest> findAll()`
+    - [ ] Declare `void save(Guest guest)` (implementation decides insert vs. update)
+    - [ ] Declare `List<Guest> search(String query)`
   - Verify: compiles.
   - Dependencies: 2.1
   - Files: `src/main/java/com/hotel/dao/GuestDao.java`
 - [ ] 2.3 `JdbcGuestDao` impl
   - Acceptance: implements 2.2 with `JdbcTemplate`, `search` uses `LIKE` with bound params.
+  - Steps:
+    - [ ] Create `JdbcGuestDao.java` implementing `GuestDao`, injecting `JdbcTemplate` via constructor
+    - [ ] Write a `RowMapper<Guest>` (private field or method) mapping `id, full_name, phone, email, id_number` columns onto a `Guest`
+    - [ ] Implement `findById`: `SELECT * FROM guests WHERE id = ?`, wrap the single-row result in `Optional` (empty when no row)
+    - [ ] Implement `findAll`: `SELECT * FROM guests`
+    - [ ] Implement `save`: branch on whether `guest.getId()` is unset to run an `INSERT` vs. an `UPDATE`, both using `PreparedStatement` bound params
+    - [ ] Implement `search`: `SELECT * FROM guests WHERE full_name LIKE ? OR phone LIKE ?` with `%query%` bound params — no string concatenation
   - Verify: insert 2-3 test guests, confirm `search("smi")` matches a "Smith" by partial name and a phone substring.
   - Dependencies: 2.2, 0.3
   - Files: `src/main/java/com/hotel/dao/JdbcGuestDao.java`
 - [ ] 2.4 `GuestService`
   - Acceptance: basic validation (non-blank name; at least one contact field) before delegating to `GuestDao`.
+  - Steps:
+    - [ ] Create `GuestService.java`, injecting `GuestDao` via constructor
+    - [ ] In `save(Guest guest)`: validate `fullName` is non-blank, throwing `IllegalArgumentException` with a user-facing message if not
+    - [ ] In `save(Guest guest)`: validate at least one of `phone`/`email` is non-blank, throwing `IllegalArgumentException` if not
+    - [ ] Once validation passes, delegate to `guestDao.save(guest)`
+    - [ ] Add pass-through `findAll()` and `search(String query)` methods delegating straight to `GuestDao`
   - Verify: attempting to save a guest with a blank name is rejected.
   - Dependencies: 2.3
   - Files: `src/main/java/com/hotel/service/GuestService.java`
@@ -26,11 +52,31 @@ Owner: teammate B. No dependencies on other modules (only Task 0). See `tasks/pl
 
 - [ ] 2.5 `GuestPanel` — list + search UI
   - Acceptance: `BorderLayout` panel — `NORTH`: a `FlowLayout` bar with a `JLabel("Search:")`, a `JTextField` (~20 cols), a "Search" `JButton`, and an "Add Guest" `JButton`; `CENTER`: `JScrollPane`-wrapped `JTable` backed by `BaseTableModel<Guest>` with columns Name / Phone / Email. "Search" button's listener calls `refresh()`, which reads the search field and calls `guestService.search(text)` if non-blank else `findAll()`, then `tableModel.setRows(...)`. Double-click a row opens `GuestFormDialog` pre-filled for editing.
+  - Steps:
+    - [ ] Create `GuestPanel.java` extending `JPanel`, storing the injected `GuestService`
+    - [ ] Set the outer layout to `BorderLayout` in the constructor
+    - [ ] Build the `NORTH` search bar: `FlowLayout` panel containing `JLabel("Search:")`, the `JTextField searchField` (20 cols), a "Search" `JButton`, and an "Add Guest" `JButton`
+    - [ ] Build the `CENTER` table: construct a `BaseTableModel<Guest>` with columns Name/Phone/Email and their extractor lambdas (`Guest::getFullName`, etc.), wrap the `JTable` in a `JScrollPane`, add to the panel
+    - [ ] Wire the Search button's `addActionListener` to call `refresh()`
+    - [ ] Wire the Add Guest button's `addActionListener` to call `GuestFormDialog.showCreate(this, guestService)` and call `refresh()` when it returns `true`
+    - [ ] Add a `MouseListener` (`mouseClicked`) on the table that, on double-click, maps the selected row via `tableModel.getRowAt(table.getSelectedRow())`, opens `GuestFormDialog.showEdit(...)`, and calls `refresh()` when it returns `true`
+    - [ ] Implement `refresh()`: read `searchField.getText()`, call `guestService.search(text)` if non-blank else `guestService.findAll()`, pass the result to `tableModel.setRows(...)`
+    - [ ] Call `refresh()` once at the end of the constructor so the table is populated on first show
   - Verify: type a partial name/phone and click Search, confirm the table filters to matching guests; clear the field and search again, confirm it shows all guests.
   - Dependencies: 2.4, 0.7, 0.8
   - Files: `src/main/java/com/hotel/ui/guests/GuestPanel.java`
 - [ ] 2.6 `GuestFormDialog`
   - Acceptance: static helper class, not a full `JDialog` subclass — `showCreate(Component parent, GuestService service)` and `showEdit(Component parent, GuestService service, Guest existing)` both delegate to a private `show(...)` that builds 3 `JTextField`s (name/phone/email, pre-filled from `existing` when editing), passes them to `Dialogs.showForm`, and on OK builds/mutates the `Guest` and calls `service.save(...)` inside a `try/catch (IllegalArgumentException)` that reports via `Dialogs.showError`. Returns `true` only when a save actually happened, so the caller knows whether to `refresh()`.
+  - Steps:
+    - [ ] Create `GuestFormDialog.java` as a class with only static methods (no instance state)
+    - [ ] Implement `showCreate(Component parent, GuestService service)` delegating to a private `show(parent, service, null)`
+    - [ ] Implement `showEdit(Component parent, GuestService service, Guest existing)` delegating to the same private `show(parent, service, existing)`
+    - [ ] In the private `show(...)`, build 3 `JTextField`s for name/phone/email, pre-filled from `existing` when non-null, blank otherwise
+    - [ ] Assemble a `LinkedHashMap<String, JComponent>` mapping label to field, in order: "Full name", "Phone", "Email"
+    - [ ] Call `Dialogs.showForm(parent, existing == null ? "Add Guest" : "Edit Guest", fields)`; return `false` immediately if it returns `false`
+    - [ ] On OK: construct a new `Guest` (create case) or reuse `existing` (edit case), set its fields from the text fields' current values
+    - [ ] Call `service.save(guest)` inside a `try/catch (IllegalArgumentException)`
+    - [ ] On success return `true`; on caught exception call `Dialogs.showError(parent, ex.getMessage())` and return `false`
   - Verify: add a guest via the dialog, confirm it shows in 2.5's table and survives app restart; edit it and confirm the change persists; submit with a blank name and confirm `GuestService`'s validation error shows via `Dialogs.showError` instead of the dialog silently closing or a stack trace appearing.
   - Dependencies: 2.5, 0.8
   - Files: `src/main/java/com/hotel/ui/guests/GuestFormDialog.java`

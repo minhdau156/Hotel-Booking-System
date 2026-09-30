@@ -4,31 +4,76 @@ Owner: whoever starts first; blocks everyone else. See `tasks/plan.md` for full 
 
 - [ ] 0.1 `pom.xml`
   - Acceptance: Java 21, Spring Boot 3.3.x parent, `spring-boot-starter`, `spring-boot-starter-jdbc`, `spring-security-crypto`, `mysql-connector-j` declared.
+  - Steps:
+    - [ ] Set `<parent>` to `spring-boot-starter-parent` version 3.3.x
+    - [ ] Set `<properties><java.version>21</java.version></properties>`
+    - [ ] Add `spring-boot-starter` dependency
+    - [ ] Add `spring-boot-starter-jdbc` dependency
+    - [ ] Add `spring-security-crypto` dependency (needed for `BCryptPasswordEncoder`)
+    - [ ] Add `mysql-connector-j` dependency (runtime scope)
+    - [ ] Add the `spring-boot-maven-plugin` to `<build><plugins>`
   - Verify: `mvn -q compile` resolves dependencies with no errors (no source files needed yet — an empty `src/main/java` is fine at this point).
   - Dependencies: None
   - Files: `pom.xml`
 - [ ] 0.2 `HotelBookingApplication.java` entrypoint
   - Acceptance: boots the Spring `ApplicationContext` via `new SpringApplicationBuilder(HotelBookingApplication.class).headless(false).run(args)` (Spring Boot defaults `java.awt.headless=true`, which makes any Swing window throw `HeadlessException` — `.headless(false)` is required), then launches Swing via `SwingUtilities.invokeLater` on the EDT; no web server starts.
+  - Steps:
+    - [ ] Create `HotelBookingApplication` class annotated `@SpringBootApplication`
+    - [ ] In `main`, build `new SpringApplicationBuilder(HotelBookingApplication.class)`
+    - [ ] Chain `.headless(false)` before `.run(args)` and capture the returned `ApplicationContext`
+    - [ ] Wrap the Swing startup code in `SwingUtilities.invokeLater(() -> { ... })`
+    - [ ] Inside that block, construct and `setVisible(true)` a blank/no-op `JFrame` for now (wiring the real `LoginFrame` here is Task 6's job)
   - Verify: with 0.3 + 0.4 done and MySQL running, `mvn spring-boot:run` opens a blank/no-op `JFrame` and doesn't crash. (Before 0.3/0.4, Boot fails on startup with "Failed to determine a suitable driver class" because `spring-boot-starter-jdbc` auto-configures a `DataSource` with no URL — that is expected, so don't treat it as a 0.2 bug.)
   - Dependencies: 0.1, 0.3, 0.4 (for the run-verify; the class itself can be written right after 0.1)
   - Files: `src/main/java/com/hotel/HotelBookingApplication.java`
 - [ ] 0.3 `DataSourceConfig`
   - Acceptance: `@Configuration` class exposing `DataSource` and `JdbcTemplate` beans, reading connection info from properties.
+  - Steps:
+    - [ ] Create `@Configuration` class `DataSourceConfig`
+    - [ ] Add a `@Bean DataSource dataSource()` method that reads `spring.datasource.url/username/password/driver-class-name` (e.g. via `DataSourceBuilder.create()...build()`)
+    - [ ] Add a `@Bean JdbcTemplate jdbcTemplate(DataSource dataSource)` method wrapping the `DataSource` bean
+    - [ ] Double-check the property keys read here match exactly what 0.4 defines
   - Verify: app context starts with a real local MySQL running and no bean-creation errors.
   - Dependencies: 0.1
   - Files: `src/main/java/com/hotel/config/DataSourceConfig.java`
 - [ ] 0.4 `application.properties` + local override + gitignore
   - Acceptance: `application.properties` has placeholder/blank DB creds; `application-local.properties.example` documents the real keys to fill in; `.gitignore` excludes `application-local.properties`.
+  - Steps:
+    - [ ] Create `application.properties` with blank/placeholder `spring.datasource.url/username/password/driver-class-name`
+    - [ ] Add `spring.profiles.active=local` to `application.properties`
+    - [ ] Add `spring.sql.init.mode=never` to `application.properties`
+    - [ ] Create `application-local.properties.example` documenting the same keys with example (non-secret) values and a comment on how to use it
+    - [ ] Add `application-local.properties` to `.gitignore`
+    - [ ] Locally copy the example to `application-local.properties` and fill in real local MySQL credentials (never commit this file)
   - Verify: copying the example to `application-local.properties` with real creds lets 0.3's beans connect. `application.properties` should set `spring.profiles.active=local` (or the README tells teammates to) so the local file is actually loaded, and `spring.sql.init.mode=never` (schema/data are loaded manually via `mysql <`, not auto-run by Boot).
   - Dependencies: 0.1 (do 0.4 before or together with 0.3 — 0.3 reads these properties)
   - Files: `src/main/resources/application.properties`, `application-local.properties.example`, `.gitignore`
 - [ ] 0.5 `schema.sql`
   - Acceptance: creates all 7 tables (`room_types`, `rooms`, `guests`, `staff`, `reservations`, `invoices`, `payments`) with FKs, the `CHECK (check_out > check_in)` constraint, and the `idx_reservations_room_dates` index, exactly per `tasks/plan.md` DDL.
+  - Steps:
+    - [ ] Create `src/main/resources/schema.sql`
+    - [ ] Write `CREATE TABLE room_types` (id, name UNIQUE, base_price, capacity, description)
+    - [ ] Write `CREATE TABLE rooms` (id, room_number UNIQUE, room_type_id FK, status ENUM AVAILABLE/OCCUPIED/MAINTENANCE default AVAILABLE)
+    - [ ] Write `CREATE TABLE guests` (id, full_name, phone, email, id_number)
+    - [ ] Write `CREATE TABLE staff` (id, username UNIQUE, password_hash, full_name, role ENUM ADMIN/RECEPTIONIST, active default TRUE)
+    - [ ] Write `CREATE TABLE reservations` (id, room_id/guest_id/staff_id FKs, check_in, check_out, status ENUM default BOOKED, created_at, `CHECK (check_out > check_in)`)
+    - [ ] Add `CREATE INDEX idx_reservations_room_dates ON reservations(room_id, check_in, check_out)`
+    - [ ] Write `CREATE TABLE invoices` (id, reservation_id FK UNIQUE, total_amount, issued_at)
+    - [ ] Write `CREATE TABLE payments` (id, invoice_id FK, amount, method ENUM CASH/CARD/TRANSFER, paid_at)
+    - [ ] Run `mysql < schema.sql` against a clean DB and `SHOW TABLES` to confirm all 7 tables exist in FK-safe creation order
   - Verify: `mysql < schema.sql` against a clean local MySQL 8 database runs with no errors; `SHOW TABLES` lists all 7.
   - Dependencies: None (can be done alongside 0.1-0.4)
   - Files: `src/main/resources/schema.sql`
 - [ ] 0.6 `data.sql`
   - Acceptance: seeds 3-4 room types, ~10 rooms (mapped to those types), and one `ADMIN` staff row whose `password_hash` is a real BCrypt hash (generate it with `BCryptPasswordEncoder` once and paste the hash — don't seed plaintext).
+  - Steps:
+    - [ ] Write a throwaway one-off (scratch `main` or unit test) that calls `new BCryptPasswordEncoder().encode("<chosen admin password>")` and prints the hash, then delete the scratch code
+    - [ ] Create `src/main/resources/data.sql`
+    - [ ] Write `INSERT INTO room_types` for 3-4 room types with distinct names/prices/capacities
+    - [ ] Write `INSERT INTO rooms` for ~10 rooms, referencing valid `room_type_id` values from the inserts above
+    - [ ] Write `INSERT INTO staff` for one ADMIN row using the pasted `$2a$...` hash (never plaintext)
+    - [ ] Run `mysql < data.sql` after `schema.sql` and confirm no FK violations
+    - [ ] `SELECT * FROM staff` and confirm `password_hash` starts with `$2a$`
   - Verify: `mysql < data.sql` after 0.5 runs with no FK errors; `SELECT * FROM staff` shows the admin row with a `$2a$...` hash.
   - Dependencies: 0.5
   - Files: `src/main/resources/data.sql`
@@ -36,16 +81,41 @@ Owner: whoever starts first; blocks everyone else. See `tasks/plan.md` for full 
 
 - [ ] 0.7 `ui/common/BaseTableModel<T>`
   - Acceptance: generic `AbstractTableModel` per guide section 5 — constructor takes `List<String> columnNames` + `List<Function<T,Object>> columnExtractors`; has `setRows(List<T>)` (calls `fireTableDataChanged()` — easy to forget, and without it the table silently never updates), `getRowAt(int)` (so a panel can map a selected table row back to the domain object for edit/delete), and overrides `getRowCount`, `getColumnCount`, `getColumnName`, `getValueAt`.
+  - Steps:
+    - [ ] Create `BaseTableModel<T> extends AbstractTableModel`
+    - [ ] Add fields `List<String> columnNames`, `List<Function<T,Object>> columnExtractors`, `List<T> rows = new ArrayList<>()`
+    - [ ] Add constructor taking `columnNames` + `columnExtractors`
+    - [ ] Implement `setRows(List<T>)`: assign `this.rows`, then call `fireTableDataChanged()`
+    - [ ] Implement `getRowAt(int rowIndex)` returning `rows.get(rowIndex)`
+    - [ ] Override `getRowCount()`, `getColumnCount()`, `getColumnName(int)`, `getValueAt(int,int)` per the guide's snippet
+    - [ ] Write a scratch `main` with a `JFrame` containing a `JTable` (wrapped in `JScrollPane`) backed by the model with 2-3 dummy rows to confirm it renders, then remove the scratch code
   - Verify: compiles; a throwaway `main` builds a `JFrame` containing a `JTable` (wrapped in `JScrollPane` — a bare `JTable` won't show its header) backed by this model with 2-3 dummy rows, and the rows render.
   - Dependencies: 0.1
   - Files: `src/main/java/com/hotel/ui/common/BaseTableModel.java`
 - [ ] 0.8 `ui/common/Dialogs`
   - Acceptance: static helpers per guide section 2 — `showForm(Component parent, String title, LinkedHashMap<String,JComponent> fields)` lays the map out as label/field rows (`GridLayout(fields.size(), 2, ...)`) inside `JOptionPane.showConfirmDialog(..., OK_CANCEL_OPTION)` and returns `true` iff OK was clicked; `showError(Component parent, String message)` wraps `JOptionPane.showMessageDialog(..., ERROR_MESSAGE)`; `showConfirm(Component parent, String message)` wraps a YES_NO confirm dialog and returns a boolean. Every feature-specific form dialog (guest, room, staff, reservation, payment) is built on top of `showForm` — don't let any module hand-roll its own `JOptionPane` call.
+  - Steps:
+    - [ ] Create `Dialogs` as a static-only utility class (private constructor)
+    - [ ] Implement `showForm(...)`: build a `JPanel` with `GridLayout(fields.size(), 2, 8, 8)`, iterate the `LinkedHashMap` adding a `JLabel` + the field component per row, call `JOptionPane.showConfirmDialog(parent, panel, title, OK_CANCEL_OPTION, PLAIN_MESSAGE)`, return `result == OK_OPTION`
+    - [ ] Implement `showError(Component parent, String message)` calling `JOptionPane.showMessageDialog(parent, message, "Error", ERROR_MESSAGE)`
+    - [ ] Implement `showConfirm(Component parent, String message)` calling `JOptionPane.showConfirmDialog(parent, message, "Confirm", YES_NO_OPTION)` and returning `result == YES_OPTION`
+    - [ ] Write a scratch `main` exercising all three (a 2-field form, an error dialog, a confirm dialog), click through OK/Cancel/Yes/No to confirm return values, then remove the scratch code
   - Verify: compiles; manually trigger all three helpers from a scratch `main` (a form with 2 `JTextField`s, an error dialog, a confirm dialog) and confirm they display and return the right boolean/value for OK vs Cancel.
   - Dependencies: 0.1
   - Files: `src/main/java/com/hotel/ui/common/Dialogs.java`
 - [ ] 0.9 `ui/MainFrame`
   - Acceptance: `JFrame` per guide section 6 — `BorderLayout` at the top level; `WEST` holds a sidebar (`JPanel` with `BoxLayout(Y_AXIS)`) with one `JButton` per module (Rooms, Guests, Booking, Staff, Billing, Reports — even though some are placeholders until their module lands); `CENTER` holds a `JPanel` using `CardLayout`. Expose `addCard(String name, JPanel panel)` (registers a module's top-level panel) and `showCard(String name)` (called by sidebar button listeners). No visibility/role logic yet — every button is shown regardless of role until Task 6.1 wires that in.
+  - Steps:
+    - [ ] Create `MainFrame extends JFrame`
+    - [ ] In the constructor, set title, `setDefaultCloseOperation(EXIT_ON_CLOSE)`, `setSize(1000, 700)`, `setLocationRelativeTo(null)`
+    - [ ] Create a `CardLayout` field and a `JPanel content` using it
+    - [ ] Create a sidebar `JPanel` with `BoxLayout(sidebar, BoxLayout.Y_AXIS)`
+    - [ ] Add one `JButton` to the sidebar per module: Rooms, Guests, Booking, Staff, Billing, Reports
+    - [ ] Wire each button's `addActionListener` to call `showCard("<that module's card name>")`
+    - [ ] Set the frame's own layout to `BorderLayout`, add the sidebar at `WEST` and `content` at `CENTER`
+    - [ ] Implement `addCard(String name, JPanel panel)` as `content.add(panel, name)`
+    - [ ] Implement `showCard(String name)` as `cardLayout.show(content, name)`
+    - [ ] Write a scratch test: register two placeholder `JPanel`s (each just a `JLabel`) via `addCard`, wire two buttons to them, run and confirm clicking switches the visible panel, then remove the placeholders (real modules register their own panels later)
   - Verify: manually register two placeholder `JPanel`s (each just a `JLabel` with different text) via `addCard`, wire two sidebar buttons to `showCard` each, run it, and confirm clicking each button swaps the visible panel.
   - Dependencies: 0.2
   - Files: `src/main/java/com/hotel/ui/MainFrame.java`

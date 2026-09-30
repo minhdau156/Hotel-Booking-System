@@ -4,31 +4,74 @@ Owner: teammate C. No dependencies on other modules (only Task 0) — can start 
 
 - [ ] 4.1 `Staff` model + `Role` enum
   - Acceptance: POJO with `id, username, passwordHash, fullName, role, active`; `Role` enum = `ADMIN, RECEPTIONIST`.
+  - Steps:
+    - [ ] Create `Role.java` with enum constants `ADMIN, RECEPTIONIST`.
+    - [ ] Create `Staff.java` with private fields `id (long), username (String), passwordHash (String), fullName (String), role (Role), active (boolean)`.
+    - [ ] Add a no-arg constructor (needed for the "new object, then setters" create-flow used by form dialogs).
+    - [ ] Add an all-args constructor (used when the row-mapper builds a `Staff` straight from a `ResultSet`).
+    - [ ] Add getters for all six fields.
+    - [ ] Add setters for all six fields (the DAO row-mapper and the edit-form flow both need to mutate an existing instance).
   - Verify: compiles.
   - Dependencies: 0.1 (`tasks/todo/task-0-scaffolding.md`)
   - Files: `src/main/java/com/hotel/model/Staff.java`, `src/main/java/com/hotel/model/Role.java`
 - [ ] 4.2 `StaffDao` interface
   - Acceptance: CRUD + `Optional<Staff> findByUsername(String)`.
+  - Steps:
+    - [ ] Declare `Optional<Staff> findById(long id)`.
+    - [ ] Declare `List<Staff> findAll()`.
+    - [ ] Declare `Optional<Staff> findByUsername(String username)`.
+    - [ ] Declare `void save(Staff staff)` (used for both insert and update — implementation decides which based on whether `id` is set).
+    - [ ] Declare `void delete(long id)` (kept on the interface for CRUD completeness even though `StaffService` prefers deactivate over calling this).
   - Verify: compiles.
   - Dependencies: 4.1
   - Files: `src/main/java/com/hotel/dao/StaffDao.java`
 - [ ] 4.3 `JdbcStaffDao` impl
   - Acceptance: implements 4.2 with `JdbcTemplate`.
+  - Steps:
+    - [ ] Annotate the class `@Repository` and inject `JdbcTemplate` via constructor.
+    - [ ] Write a private `RowMapper<Staff>` (or a static method reference) mapping all 6 columns, including converting the `role` column string to the `Role` enum via `Role.valueOf(...)`.
+    - [ ] Implement `findById` using `queryForObject` wrapped to return `Optional` (catch `EmptyResultDataAccessException` → `Optional.empty()`, per SPEC's DAO contract).
+    - [ ] Implement `findAll` using `query` with the row mapper.
+    - [ ] Implement `findByUsername` using `query`/`queryForObject` with a `WHERE username = ?` bound parameter, returning `Optional`.
+    - [ ] Implement `save` — branch on whether `staff.getId() == 0`/`null`: `INSERT` with bound params for a new row, `UPDATE ... WHERE id = ?` for an existing one.
+    - [ ] Implement `delete` with a bound-parameter `DELETE FROM staff WHERE id = ?`.
   - Verify: with 0.6 seed data loaded, `findByUsername("admin")` (or whatever the seeded username is) returns the seeded row.
   - Dependencies: 4.2, 0.3, 0.6
   - Files: `src/main/java/com/hotel/dao/JdbcStaffDao.java`
 - [ ] 4.4 `CurrentUserContext`
   - Acceptance: Spring-managed singleton bean holding the currently logged-in `Staff` (nullable/empty when logged out); simple get/set/clear API.
+  - Steps:
+    - [ ] Create the class annotated `@Component` (Spring's default singleton scope is what we want — one shared instance for the whole running app).
+    - [ ] Add a private `Staff currentStaff` field, initialized to `null`.
+    - [ ] Add `Optional<Staff> getCurrentStaff()` returning `Optional.ofNullable(currentStaff)`.
+    - [ ] Add `void setCurrentStaff(Staff staff)` (called by `AuthService.login` on success).
+    - [ ] Add `void clear()` (sets `currentStaff = null`; called by `AuthService.logout`).
+    - [ ] Add a convenience `boolean isLoggedIn()` and/or `Role getRole()`-style helper if `MainFrame`/Task 6 will read the role directly — optional, but avoids every caller doing `getCurrentStaff().map(Staff::getRole)` themselves.
   - Verify: compiles; a scratch test sets then clears the context and confirms state.
   - Dependencies: 4.1, 0.1
   - Files: `src/main/java/com/hotel/service/CurrentUserContext.java`
 - [ ] 4.5 `AuthService`
   - Acceptance: `login(username, password)` looks up via `StaffDao.findByUsername`, verifies with `BCryptPasswordEncoder.matches`, populates `CurrentUserContext` on success; `logout()` clears it.
+  - Steps:
+    - [ ] Annotate the class `@Service` and inject `StaffDao`, `CurrentUserContext`, and a `BCryptPasswordEncoder` bean via constructor.
+    - [ ] Implement `login(String username, String password)`: call `staffDao.findByUsername(username)`; if empty, return/throw a failure (don't leak "no such user" vs "wrong password" distinctly — both should just fail login).
+    - [ ] Add the `active` check: if the found `Staff.isActive()` is `false`, treat it as a failed login even if the password matches (this is what makes deactivate effective).
+    - [ ] Verify the password with `passwordEncoder.matches(rawPassword, staff.getPasswordHash())`.
+    - [ ] On a successful match, call `currentUserContext.setCurrentStaff(staff)` and return success.
+    - [ ] On any failure path (no user, inactive, wrong password), make sure `CurrentUserContext` is left untouched/empty — don't partially populate it before the check.
+    - [ ] Implement `logout()` calling `currentUserContext.clear()`.
   - Verify: login with the seeded admin's real password succeeds; a wrong password fails and `CurrentUserContext` stays empty.
   - Dependencies: 4.3, 4.4
   - Files: `src/main/java/com/hotel/service/AuthService.java`
 - [ ] 4.6 `StaffService`
   - Acceptance: admin-facing CRUD over staff accounts; hashes new/changed passwords with `BCryptPasswordEncoder` before saving; supports deactivate (flip `active`) instead of hard delete.
+  - Steps:
+    - [ ] Annotate the class `@Service` and inject `StaffDao` and a `BCryptPasswordEncoder` bean via constructor.
+    - [ ] Implement `findAll()` delegating straight to `staffDao.findAll()`.
+    - [ ] Implement `create(Staff staff, String rawPassword)` (or equivalent): validate non-blank username/full name, hash `rawPassword` with `passwordEncoder.encode(...)`, set it as `passwordHash`, default `active = true`, call `staffDao.save(...)`.
+    - [ ] Implement `update(Staff existing, ...)` for the "no password field" edit path (name/role/active only) — must NOT overwrite `passwordHash` with a blank/hashed-empty-string.
+    - [ ] Implement a separate password-reset method (e.g. `resetPassword(long staffId, String newRawPassword)`) that re-hashes and saves only the password field, for when a password change is needed outside of creation.
+    - [ ] Implement `deactivate(long staffId)`: load the staff row, set `active = false`, save — never call `staffDao.delete(...)` from this path.
   - Verify: create a new staff account via the service, then log in as that account through `AuthService`.
   - Dependencies: 4.3
   - Files: `src/main/java/com/hotel/service/StaffService.java`
@@ -36,11 +79,33 @@ Owner: teammate C. No dependencies on other modules (only Task 0) — can start 
 
 - [ ] 4.7 `LoginFrame` UI
   - Acceptance: standalone `JFrame` (not a card) with a centered form: `JLabel("Username")` + `JTextField`, `JLabel("Password")` + `JPasswordField` (use `JPasswordField`, not `JTextField`, so input is masked), a "Login" `JButton`, laid out with `GridLayout(3,2,8,8)` or `GridBagLayout` inside a padded outer panel. Pressing Enter in the password field should also trigger login (`passwordField.addActionListener(loginAction)` — `JPasswordField` fires an action event on Enter, same listener as the button). On click: call `authService.login(username, new String(passwordField.getPassword()))`; on success, `dispose()` this frame and construct/show `MainFrame` with all module panels registered; on failure, `Dialogs.showError(this, "Invalid username or password")` and stay open with the password field cleared. This is the very first window `HotelBookingApplication` shows.
+  - Steps:
+    - [ ] Create the `LoginFrame` class extending `JFrame`; set title, `setDefaultCloseOperation(EXIT_ON_CLOSE)`, and center it with `setLocationRelativeTo(null)`.
+    - [ ] Build the form panel: `JLabel("Username")` + `JTextField`, `JLabel("Password")` + `JPasswordField`, laid out with `GridLayout(3,2,8,8)` (row 3 for the button, spanning or left blank in one cell) inside an outer panel with an `EmptyBorder` for padding.
+    - [ ] Add the "Login" `JButton` to the form.
+    - [ ] Extract the login action into a single `ActionListener` (a local var or method reference) so it can be wired to both the button and the password field.
+    - [ ] Wire `passwordField.addActionListener(loginAction)` so pressing Enter in the password field submits.
+    - [ ] Wire `loginButton.addActionListener(loginAction)`.
+    - [ ] In the shared login action: read username text + `new String(passwordField.getPassword())`, call `authService.login(...)`.
+    - [ ] On success: `dispose()` this frame, construct `MainFrame` (registering all module panels via `addCard`), call `setVisible(true)` on it.
+    - [ ] On failure: call `Dialogs.showError(this, "Invalid username or password")`, then `passwordField.setText("")` to clear it, and leave the frame open.
+    - [ ] Wire `HotelBookingApplication`'s Swing startup (inside `SwingUtilities.invokeLater`) to construct and show `LoginFrame` first, not `MainFrame`.
   - Verify: run the app — login screen appears first, no other window; wrong credentials show an error dialog and the login screen stays open with password cleared; correct credentials close the login window and open `MainFrame`.
   - Dependencies: 4.5, 0.8, 0.9
   - Files: `src/main/java/com/hotel/ui/login/LoginFrame.java`
 - [ ] 4.8 `StaffPanel` UI (admin-only)
   - Acceptance: same "list + search" shape as `GuestPanel` (guide section 1) — `BorderLayout`; `NORTH`: "Add Staff" button (search is optional, staff lists are small); `CENTER`: `JScrollPane`-wrapped `JTable` via `BaseTableModel<Staff>` with columns Username / Full Name / Role / Active. Add/edit via a `StaffFormDialog` (guide section 2 shape) with `JTextField` username/full name, a `JComboBox<Role>` for role, and — only when creating, not editing — a `JPasswordField` for the initial password (edit mode changes name/role/active only; add a separate "Reset Password" button/dialog if a password change is needed later, don't overload the edit form). "Deactivate" is a button on the selected row (not a delete) calling `staffService` to flip `active` to false, guarded by `Dialogs.showConfirm`. This panel itself doesn't need to check `CurrentUserContext.role` — Task 6.1 controls whether it's reachable at all via the sidebar.
+  - Steps:
+    - [ ] Create `StaffPanel extends JPanel` with a `BorderLayout` constructor taking `StaffService`.
+    - [ ] Build `NORTH`: an "Add Staff" `JButton` whose listener calls `StaffFormDialog.showCreate(this, staffService)` and `refresh()`s on `true`.
+    - [ ] Build `CENTER`: a `BaseTableModel<Staff>` with columns Username / Full Name / Role / Active (extractors: `Staff::getUsername`, `Staff::getFullName`, `s -> s.getRole()`, `Staff::isActive`), wrapped `JTable` inside a `JScrollPane`.
+    - [ ] Wire a double-click `MouseListener` on the table to open `StaffFormDialog.showEdit(this, staffService, selected)` and `refresh()` on `true`.
+    - [ ] Add a "Deactivate" button/row-action: guard with `Dialogs.showConfirm(...)`, then call `staffService.deactivate(selected.getId())`, then `refresh()`.
+    - [ ] Implement `refresh()`: call `staffService.findAll()` and `tableModel.setRows(...)`.
+    - [ ] Create `StaffFormDialog` with static `showCreate(Component, StaffService)` and `showEdit(Component, StaffService, Staff)` methods delegating to a private `show(...)`.
+    - [ ] In `show(...)`, build `JTextField`s for username and full name (pre-filled from `existing` when editing), a `JComboBox<Role>` (values `Role.values()`) pre-selected to `existing.getRole()` when editing.
+    - [ ] Only when `existing == null` (create mode), add a `JPasswordField` for the initial password to the `LinkedHashMap` passed to `Dialogs.showForm`; omit it entirely in edit mode.
+    - [ ] On OK: in create mode call `staffService.create(newStaff, new String(passwordField.getPassword()))`; in edit mode mutate `existing`'s name/role and call `staffService.update(existing)` (leaving the password untouched), each wrapped in `try/catch (IllegalArgumentException)` reporting via `Dialogs.showError`.
   - Verify: as admin, create a staff account, edit it, deactivate it, confirm each persists in the table and after app restart; log in as the newly created account via `LoginFrame` before it's deactivated, then confirm login fails via `AuthService` after deactivation.
   - Dependencies: 4.6, 0.7, 0.8
   - Files: `src/main/java/com/hotel/ui/staff/StaffPanel.java`, `src/main/java/com/hotel/ui/staff/StaffFormDialog.java`

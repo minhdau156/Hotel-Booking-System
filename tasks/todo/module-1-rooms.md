@@ -4,36 +4,84 @@ Owner: teammate A. No dependencies on other modules (only Task 0). See `tasks/pl
 
 - [ ] 1.1 `RoomType` model
   - Acceptance: POJO with `id, name, basePrice, capacity, description` fields, constructor, getters (and setters if the DAO row-mapper needs them).
+  - Steps:
+    - [ ] Create `RoomType.java` in `src/main/java/com/hotel/model/`
+    - [ ] Add private fields: `id` (`long`), `name` (`String`), `basePrice` (`BigDecimal`, matches DDL's `DECIMAL(10,2)`), `capacity` (`int`), `description` (`String`)
+    - [ ] Add a no-args constructor (row-mapper builds the object then calls setters)
+    - [ ] Add an all-args constructor for convenience when constructing in code/tests
+    - [ ] Add getters for all fields
+    - [ ] Add setters for all fields
+    - [ ] Override `toString()` to return `name` (so a future `JComboBox<RoomType>`, e.g. in 1.9, displays readably per swing-guide section 4)
   - Verify: compiles.
   - Dependencies: 0.1 (`tasks/todo/task-0-scaffolding.md`)
   - Files: `src/main/java/com/hotel/model/RoomType.java`
 - [ ] 1.2 `Room` model
   - Acceptance: POJO with `id, roomNumber, roomTypeId, status` (status as a `RoomStatus` enum: AVAILABLE/OCCUPIED/MAINTENANCE).
+  - Steps:
+    - [ ] Create `RoomStatus.java` enum with constants `AVAILABLE, OCCUPIED, MAINTENANCE` (matches the DDL `ENUM('AVAILABLE','OCCUPIED','MAINTENANCE')`)
+    - [ ] Create `Room.java` in `src/main/java/com/hotel/model/`
+    - [ ] Add private fields: `id` (`long`), `roomNumber` (`String`), `roomTypeId` (`long`), `status` (`RoomStatus`)
+    - [ ] Add a no-args constructor and an all-args constructor
+    - [ ] Add getters for all fields
+    - [ ] Add setters for all fields
+    - [ ] Override `toString()` to return `roomNumber` (useful anywhere a `Room` ends up in a combo box or log line)
   - Verify: compiles.
   - Dependencies: 0.1
   - Files: `src/main/java/com/hotel/model/Room.java`, `src/main/java/com/hotel/model/RoomStatus.java`
 - [ ] 1.3 `RoomTypeDao` interface
   - Acceptance: `Optional<RoomType> findById(long)`, `List<RoomType> findAll()`, `void save(RoomType)`, per SPEC's DAO contract (`Optional`/`List`, never `null`).
+  - Steps:
+    - [ ] Create `RoomTypeDao.java` interface in `src/main/java/com/hotel/dao/`
+    - [ ] Declare `Optional<RoomType> findById(long id)`
+    - [ ] Declare `List<RoomType> findAll()`
+    - [ ] Declare `void save(RoomType roomType)` — decide and document the insert-vs-update convention this method follows (e.g. `id == 0` → insert, otherwise → update) since 1.4 has to implement exactly that behavior
   - Verify: compiles.
   - Dependencies: 1.1
   - Files: `src/main/java/com/hotel/dao/RoomTypeDao.java`
 - [ ] 1.4 `JdbcRoomTypeDao` impl
   - Acceptance: implements 1.3 with `JdbcTemplate`, using `PreparedStatement` params (no string concatenation).
+  - Steps:
+    - [ ] Create `JdbcRoomTypeDao.java` implementing `RoomTypeDao`, constructor-injected `JdbcTemplate`
+    - [ ] Write a private `RowMapper<RoomType>` (or a `rowMapper` method reference) mapping all 5 columns, including converting the `DECIMAL` column to `BigDecimal` via `rs.getBigDecimal(...)`
+    - [ ] Implement `findById` with `jdbcTemplate.query(...)` + `DataAccessUtils.optionalResult(...)` (or manual `Optional` wrapping)
+    - [ ] Implement `findAll` with `jdbcTemplate.query("SELECT ...", rowMapper)`
+    - [ ] Implement `save`'s insert branch (`INSERT INTO room_types (...) VALUES (?, ?, ?, ?)` with bound params)
+    - [ ] Implement `save`'s update branch (`UPDATE room_types SET ... WHERE id = ?` with bound params)
   - Verify: with 0.5/0.6 seed data loaded, a scratch call to `findAll()` returns the seeded room types.
   - Dependencies: 1.3, 0.3, 0.6
   - Files: `src/main/java/com/hotel/dao/JdbcRoomTypeDao.java`
 - [ ] 1.5 `RoomDao` interface
   - Acceptance: CRUD methods plus `List<Room> findAvailable(LocalDate checkIn, LocalDate checkOut)`.
+  - Steps:
+    - [ ] Create `RoomDao.java` interface in `src/main/java/com/hotel/dao/`
+    - [ ] Declare `Optional<Room> findById(long id)`
+    - [ ] Declare `List<Room> findAll()`
+    - [ ] Declare `void save(Room room)` (same insert-vs-update convention decided in 1.3)
+    - [ ] Declare `boolean existsByRoomNumber(String roomNumber)` (needed by 1.7's unique-room-number validation)
+    - [ ] Declare `List<Room> findAvailable(LocalDate checkIn, LocalDate checkOut)`
   - Verify: compiles.
   - Dependencies: 1.2
   - Files: `src/main/java/com/hotel/dao/RoomDao.java`
 - [ ] 1.6 `JdbcRoomDao` impl
   - Acceptance: implements 1.5; `findAvailable` uses the NOT IN / date-overlap query from SPEC.md's Code Style example.
+  - Steps:
+    - [ ] Create `JdbcRoomDao.java` implementing `RoomDao`, constructor-injected `JdbcTemplate`
+    - [ ] Write a `RowMapper<Room>` mapping all 4 columns, converting the `status` column string to the `RoomStatus` enum via `RoomStatus.valueOf(...)`
+    - [ ] Implement `findById`, `findAll`, `save` (insert + update branches) following the same shape as 1.4
+    - [ ] Implement `existsByRoomNumber` with a `SELECT COUNT(*) ... WHERE room_number = ?` (or `SELECT 1 ... LIMIT 1`) bound param query
+    - [ ] Implement `findAvailable`: write the date-overlap subquery — rooms whose `id` is NOT IN the set of `room_id`s from `reservations` where status is active (BOOKED/CHECKED_IN) and `check_in < :checkOut AND check_out > :checkIn` — with both dates bound as `PreparedStatement` params
   - Verify: with seed data + a manually inserted test reservation (via raw SQL), confirm `findAvailable` excludes the booked room for overlapping dates and includes it for non-overlapping dates.
   - Dependencies: 1.5, 0.3, 0.6
   - Files: `src/main/java/com/hotel/dao/JdbcRoomDao.java`
 - [ ] 1.7 `RoomService`
   - Acceptance: validates unique room number and valid `room_type_id` before delegating to `RoomDao`/`RoomTypeDao`; exposes `findAvailable` for Module 3 to reuse.
+  - Steps:
+    - [ ] Create `RoomService.java`, constructor-injected `RoomDao` + `RoomTypeDao`
+    - [ ] Implement `save(Room room)`: call `roomDao.existsByRoomNumber(...)` and throw/return a validation error (e.g. `IllegalArgumentException`) when it's a duplicate on create
+    - [ ] Implement the `room_type_id` check: call `roomTypeDao.findById(room.getRoomTypeId())` and reject if empty
+    - [ ] Once both checks pass, delegate to `roomDao.save(room)`
+    - [ ] Add pass-through methods `findAll()`, `findById(long)` delegating to `roomDao`
+    - [ ] Add `findAvailable(LocalDate checkIn, LocalDate checkOut)` delegating straight to `roomDao.findAvailable(...)` — this is the method Module 3 will call
   - Verify: unit-style scratch call — adding a duplicate room number throws/returns a validation error instead of hitting the DB.
   - Dependencies: 1.4, 1.6
   - Files: `src/main/java/com/hotel/service/RoomService.java`
@@ -41,11 +89,34 @@ Owner: teammate A. No dependencies on other modules (only Task 0). See `tasks/pl
 
 - [ ] 1.8 `RoomTypePanel` UI
   - Acceptance: `BorderLayout` panel — `NORTH`: just an "Add Room Type" `JButton` (no search needed, there are only 3-4 room types); `CENTER`: a `JScrollPane`-wrapped `JTable` backed by a `BaseTableModel<RoomType>` with columns Name / Base Price / Capacity / Description. Add button opens a `RoomTypeFormDialog` (built on `Dialogs.showForm`, guide section 2) with `JTextField`s for name/capacity/description and a `JTextField` or `JSpinner` (`SpinnerNumberModel`) for base price; double-click a row opens the same dialog pre-filled for editing. On OK, calls `RoomService`/`RoomTypeDao` (whichever the service exposes) then calls the panel's `refresh()`.
+  - Steps:
+    - [ ] Create `RoomTypePanel.java` extending `JPanel`, constructor takes `RoomService`/`RoomTypeDao` (whichever is exposed) and sets `BorderLayout`
+    - [ ] Build the `NORTH` bar: a `JPanel` (e.g. `FlowLayout`) containing the "Add Room Type" `JButton`
+    - [ ] Build the `CENTER`: construct a `BaseTableModel<RoomType>` with columns Name/Base Price/Capacity/Description and their extractor lambdas, wrap the `JTable` in a `JScrollPane`
+    - [ ] Wire the Add button's listener to call `RoomTypeFormDialog.showCreate(...)` and `refresh()` on success
+    - [ ] Wire a double-click `MouseListener` on the table to look up the selected row via `tableModel.getRowAt(...)` and call `RoomTypeFormDialog.showEdit(...)`, `refresh()` on success
+    - [ ] Implement `refresh()` calling `findAll()` and `tableModel.setRows(...)`
+    - [ ] Call `refresh()` once at the end of the constructor so the table isn't empty on first show
+    - [ ] Create `RoomTypeFormDialog.java` as a static helper (per guide section 2) with `showCreate(...)`/`showEdit(...)` delegating to a private `show(...)`
+    - [ ] In `show(...)`, build the `JTextField`s for name/capacity/description and the price field (`JTextField` or `JSpinner(SpinnerNumberModel)`), pre-filled from the existing `RoomType` when editing
+    - [ ] Assemble the `LinkedHashMap<String,JComponent>` and call `Dialogs.showForm(...)`
+    - [ ] On OK, build/mutate the `RoomType`, call the save method inside a `try/catch (IllegalArgumentException)` reporting via `Dialogs.showError`, return whether it saved
   - Verify: add a room type through the UI, confirm it appears in the list and persists after app restart; edit one and confirm the change shows; try adding a duplicate name and confirm `RoomService`'s validation error surfaces via `Dialogs.showError` instead of a raw exception/stack trace.
   - Dependencies: 1.7, 0.7, 0.8
   - Files: `src/main/java/com/hotel/ui/rooms/RoomTypePanel.java`, `src/main/java/com/hotel/ui/rooms/RoomTypeFormDialog.java`
 - [ ] 1.9 `RoomPanel` UI
   - Acceptance: `BorderLayout` panel — `NORTH`: "Add Room" `JButton`; `CENTER`: `JScrollPane`-wrapped `JTable` backed by `BaseTableModel<Room>` with columns Room Number / Room Type / Status. Add/edit via a `RoomFormDialog` with a `JTextField` for room number and a `JComboBox<RoomType>` (populated from `RoomService`/`RoomTypeDao`, relies on `RoomType.toString()` returning its name per guide section 4) to pick the type. Status change is a separate, simpler action: right-click or a "Change Status" button on the selected row opens a `JComboBox<RoomStatus>` picker (a small `Dialogs.showForm` with one combo field) and calls the service to persist it.
+  - Steps:
+    - [ ] Create `RoomPanel.java` extending `JPanel`, constructor takes `RoomService` and sets `BorderLayout`
+    - [ ] Build the `NORTH` bar with "Add Room" and "Change Status" `JButton`s (Change Status enabled only when a row is selected, via a `ListSelectionListener`)
+    - [ ] Build the `CENTER`: `BaseTableModel<Room>` with columns Room Number/Room Type/Status (the Room Type column extractor needs to resolve `roomTypeId` to a name, e.g. via a lookup map or a small joined query) wrapped in `JScrollPane`
+    - [ ] Wire the Add button to `RoomFormDialog.showCreate(...)`, `refresh()` on success
+    - [ ] Wire double-click on a row to `RoomFormDialog.showEdit(...)`, `refresh()` on success
+    - [ ] Wire the Change Status button to build a one-field `JComboBox<RoomStatus>` form via `Dialogs.showForm`, call `roomService.save(...)` with the updated status, `refresh()` on success
+    - [ ] Implement `refresh()` calling `findAll()` and `tableModel.setRows(...)`, call it once in the constructor
+    - [ ] Create `RoomFormDialog.java` as a static helper with `showCreate(...)`/`showEdit(...)` delegating to a private `show(...)`
+    - [ ] In `show(...)`, build the room number `JTextField` and the `JComboBox<RoomType>` (populated from `roomService`/`roomTypeService`'s `findAll()`), pre-filled/pre-selected from the existing `Room` when editing
+    - [ ] Assemble the fields map, call `Dialogs.showForm(...)`, and on OK build/mutate the `Room` (reading the selected `RoomType`'s id from the combo) and call `roomService.save(...)` inside a `try/catch` reporting via `Dialogs.showError`
   - Verify: add a room, confirm it appears with correct type/status; change status to MAINTENANCE via the UI and confirm it persists (re-open the panel or restart the app).
   - Dependencies: 1.7, 0.7, 0.8
   - Files: `src/main/java/com/hotel/ui/rooms/RoomPanel.java`, `src/main/java/com/hotel/ui/rooms/RoomFormDialog.java`
