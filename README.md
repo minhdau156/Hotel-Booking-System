@@ -51,7 +51,7 @@ Verify:
 docker exec hotel-mysql mysql -uroot -pyour_password hotel_db -e "SHOW TABLES; SELECT * FROM room_types;"
 ```
 
-The seed data creates 4 room types, 10 rooms and one admin account (`admin` / `Admin@123`).
+The seed data creates 4 room types, 10 rooms and one admin account (`admin` / `12345678`).
 
 ### Managing the container
 

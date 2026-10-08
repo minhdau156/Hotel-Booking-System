@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 /**
  * MainFrame
  */
-@Component 
+ 
 public class MainFrame extends JFrame{
 
     public static final String ROOMS   = "Rooms";

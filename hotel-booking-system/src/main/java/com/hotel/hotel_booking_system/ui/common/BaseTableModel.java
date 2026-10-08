@@ -43,5 +43,10 @@ public class BaseTableModel<T> extends AbstractTableModel {
     public Object getValueAt(int rowIndex, int columnIndex) {
         return columnExtractors.get(columnIndex).apply(rows.get(rowIndex));
     }
+
+    @Override
+    public String getColumnName(int column) {
+        return columnNames.get(column);   
+    }
     
 }
