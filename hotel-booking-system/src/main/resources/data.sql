@@ -20,7 +20,7 @@ INSERT INTO rooms (room_number, room_type_id, status) VALUES
   ('401', (SELECT id FROM room_types WHERE name = 'Suite'),    'AVAILABLE'),
   ('402', (SELECT id FROM room_types WHERE name = 'Suite'),    'AVAILABLE');
 
--- 3) One ADMIN staff row (password: Admin@123, BCrypt-hashed)
+-- 3) One ADMIN staff row (password: 12345678, BCrypt-hashed)
 INSERT INTO staff (username, password_hash, full_name, role, active) VALUES
   ('admin',
    '$2a$10$z/HGe3yXTMXwDB2ktzoDkunvuYhVwfBz8aP7Hk.u7/8lYJde.zyiS',
