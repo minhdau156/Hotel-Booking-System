@@ -7,26 +7,50 @@ import com.hotel.hotel_booking_system.model.Invoice;
 import com.hotel.hotel_booking_system.model.Payment;
 import com.hotel.hotel_booking_system.model.PaymentMethod;
 import com.hotel.hotel_booking_system.service.BillingService;
+import com.hotel.hotel_booking_system.ui.common.BaseTableModel;
+import com.hotel.hotel_booking_system.ui.common.Dialog;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.swing.*;
-import javax.swing.table.AbstractTableModel;
 import java.awt.*;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class BillingPanel extends JPanel {
+
     private final JdbcTemplate jdbcTemplate;
     private final InvoiceDao invoiceDao;
     private final PaymentDao paymentDao;
     private final BillingService billingService;
-    private final ReservationTableModel reservationModel =
-        new ReservationTableModel();
-    private final PaymentTableModel paymentModel =
-        new PaymentTableModel();
+    private final BaseTableModel<ReservationRow> reservationModel =
+        new BaseTableModel<>(
+            List.of(
+                "Reservation ID",
+                "Guest",
+                "Room",
+                "Check-in",
+                "Check-out"
+            ),
+            List.of(
+                row -> row.id(),
+                row -> row.guestName(),
+                row -> row.roomNumber(),
+                row -> row.checkIn(),
+                row -> row.checkOut()
+            )
+        );
+    private final BaseTableModel<Payment> paymentModel =
+        new BaseTableModel<>(
+            List.of("Amount", "Method", "Paid At"),
+            List.of(
+                payment -> payment.getAmount(),
+                payment -> payment.getMethod(),
+                payment -> payment.getPaidAt()
+            )
+        );
     private final JTable reservationTable =
         new JTable(reservationModel);
     private final JTable paymentTable =
@@ -52,7 +76,9 @@ public class BillingPanel extends JPanel {
     }
     private void buildUI() {
         setLayout(new BorderLayout(8, 8));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setBorder(
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        );
         reservationTable.setSelectionMode(
             ListSelectionModel.SINGLE_SELECTION
         );
@@ -65,10 +91,10 @@ public class BillingPanel extends JPanel {
             )
         );
         add(reservationScroll, BorderLayout.NORTH);
-        JPanel detailsPanel = new JPanel(new BorderLayout(5, 5));
-        JPanel summaryPanel = new JPanel(
-            new GridLayout(2, 1, 5, 5)
-        );
+        JPanel detailsPanel =
+            new JPanel(new BorderLayout(5, 5));
+        JPanel summaryPanel =
+            new JPanel(new GridLayout(2, 1, 5, 5));
         summaryPanel.add(totalLabel);
         summaryPanel.add(issuedLabel);
         detailsPanel.add(summaryPanel, BorderLayout.NORTH);
@@ -81,9 +107,8 @@ public class BillingPanel extends JPanel {
         detailsPanel.add(paymentScroll, BorderLayout.CENTER);
         add(detailsPanel, BorderLayout.CENTER);
         paymentButton.setEnabled(false);
-        JPanel bottomPanel = new JPanel(new FlowLayout(
-            FlowLayout.RIGHT
-        ));
+        JPanel bottomPanel =
+            new JPanel(new FlowLayout(FlowLayout.RIGHT));
         bottomPanel.add(paymentButton);
         add(bottomPanel, BorderLayout.SOUTH);
         reservationTable.getSelectionModel()
@@ -124,15 +149,15 @@ public class BillingPanel extends JPanel {
     }
     private void onReservationSelected() {
         int viewRow = reservationTable.getSelectedRow();
+
         if (viewRow < 0) {
             clearInvoice();
             return;
         }
-        int modelRow = reservationTable.convertRowIndexToModel(
-            viewRow
-        );
+        int modelRow =
+            reservationTable.convertRowIndexToModel(viewRow);
         ReservationRow reservation =
-            reservationModel.getRow(modelRow);
+            reservationModel.getRowAt(modelRow);
         var invoiceOptional =
             invoiceDao.findByReservationId(reservation.id());
         if (invoiceOptional.isEmpty()) {
@@ -150,15 +175,16 @@ public class BillingPanel extends JPanel {
     private void loadInvoice(Invoice invoice) {
         selectedInvoiceId = invoice.getId();
         totalLabel.setText(
-            "Tổng tiền: " + invoice.getTotalAmount().toPlainString()
+            "Tổng tiền: " +
+            invoice.getTotalAmount().toPlainString()
         );
         DateTimeFormatter formatter =
             DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         issuedLabel.setText(
-            "Ngày phát hành: "
-                + (invoice.getIssuedAt() == null
-                    ? "--"
-                    : invoice.getIssuedAt().format(formatter))
+            "Ngày phát hành: " +
+            (invoice.getIssuedAt() == null
+                ? "--"
+                : invoice.getIssuedAt().format(formatter))
         );
         paymentModel.setRows(
             paymentDao.findByInvoiceId(invoice.getId())
@@ -178,24 +204,24 @@ public class BillingPanel extends JPanel {
         }
         JSpinner amountSpinner = new JSpinner(
             new SpinnerNumberModel(
-                100000.0, 1.0, 1000000000.0, 10000.0
+                100000.0,
+                1.0,
+                1000000000.0,
+                10000.0
             )
         );
         JComboBox<PaymentMethod> methodCombo =
             new JComboBox<>(PaymentMethod.values());
-        JPanel form = new JPanel(new GridLayout(2, 2, 8, 8));
-        form.add(new JLabel("Amount:"));
-        form.add(amountSpinner);
-        form.add(new JLabel("Payment method:"));
-        form.add(methodCombo);
-        int result = JOptionPane.showConfirmDialog(
+        LinkedHashMap<String, JComponent> fields =
+            new LinkedHashMap<>();
+        fields.put("Amount:", amountSpinner);
+        fields.put("Payment method:", methodCombo);
+        boolean confirmed = Dialog.showForm(
             this,
-            form,
             "Record Payment",
-            JOptionPane.OK_CANCEL_OPTION,
-            JOptionPane.PLAIN_MESSAGE
+            fields
         );
-        if (result != JOptionPane.OK_OPTION) {
+        if (!confirmed) {
             return;
         }
         BigDecimal amount = BigDecimal.valueOf(
@@ -217,12 +243,7 @@ public class BillingPanel extends JPanel {
                 "Đã ghi nhận thanh toán thành công."
             );
         } catch (RuntimeException ex) {
-            JOptionPane.showMessageDialog(
-                this,
-                ex.getMessage(),
-                "Payment error",
-                JOptionPane.ERROR_MESSAGE
-            );
+            Dialog.showError(this, ex.getMessage());
         }
     }
     private record ReservationRow(
@@ -232,76 +253,4 @@ public class BillingPanel extends JPanel {
         String checkIn,
         String checkOut
     ) {}
-    private static class ReservationTableModel
-            extends AbstractTableModel {
-        private final String[] columns = {
-            "Reservation ID", "Guest", "Room",
-            "Check-in", "Check-out"
-        };
-        private List<ReservationRow> rows = new ArrayList<>();
-        public void setRows(List<ReservationRow> rows) {
-            this.rows = new ArrayList<>(rows);
-            fireTableDataChanged();
-        }
-        public ReservationRow getRow(int index) {
-            return rows.get(index);
-        }
-        @Override
-        public int getRowCount() {
-            return rows.size();
-        }
-        @Override
-        public int getColumnCount() {
-            return columns.length;
-        }
-        @Override
-        public String getColumnName(int column) {
-            return columns[column];
-        }
-        @Override
-        public Object getValueAt(int row, int column) {
-            ReservationRow item = rows.get(row);
-            return switch (column) {
-                case 0 -> item.id();
-                case 1 -> item.guestName();
-                case 2 -> item.roomNumber();
-                case 3 -> item.checkIn();
-                case 4 -> item.checkOut();
-                default -> null;
-            };
-        }
-    }
-    private static class PaymentTableModel
-            extends AbstractTableModel {
-        private final String[] columns = {
-            "Amount", "Method", "Paid At"
-        };
-        private List<Payment> rows = new ArrayList<>();
-        public void setRows(List<Payment> rows) {
-            this.rows = new ArrayList<>(rows);
-            fireTableDataChanged();
-        }
-        @Override
-        public int getRowCount() {
-            return rows.size();
-        }
-        @Override
-        public int getColumnCount() {
-            return columns.length;
-        }
-        @Override
-        public String getColumnName(int column) {
-            return columns[column];
-        }
-        @Override
-        public Object getValueAt(int row, int column) {
-            Payment item = rows.get(row);
-            return switch (column) {
-                case 0 -> item.getAmount();
-                case 1 -> item.getMethod();
-                case 2 -> item.getPaidAt();
-                default -> null;
-            };
-        }
-    }
 }
