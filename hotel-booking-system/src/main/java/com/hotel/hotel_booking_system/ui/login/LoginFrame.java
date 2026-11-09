@@ -17,7 +17,11 @@ import org.springframework.stereotype.Component;
 
 import com.hotel.hotel_booking_system.MainFrame;
 import com.hotel.hotel_booking_system.service.AuthService;
+// import com.hotel.hotel_booking_system.ui.billing.BillingPanel;
 import com.hotel.hotel_booking_system.ui.common.Dialog;
+import com.hotel.hotel_booking_system.ui.guests.GuestPanel;
+import com.hotel.hotel_booking_system.ui.rooms.RoomsPanel;
+// import com.hotel.hotel_booking_system.ui.reports.ReportsPanel;
 import com.hotel.hotel_booking_system.ui.staff.StaffPanel;
 
 @Component
@@ -26,12 +30,22 @@ public class LoginFrame extends JFrame {
     private final JPasswordField passwordField = new JPasswordField(20);
     private final JButton button = new JButton("Login");
 
+    private final RoomsPanel roomsPanel;
     private final AuthService authService;
     private final StaffPanel staffPanel;
+    private final GuestPanel guestPanel;
+    // private final BillingPanel billingPanel;
+    // private final ReportsPanel reportsPanel;
 
-    public LoginFrame(AuthService authService, StaffPanel staffPanel) {
+    public LoginFrame(AuthService authService, RoomsPanel roomsPanel,  StaffPanel staffPanel, 
+        GuestPanel guestPanel
+    ) {
+        this.roomsPanel = roomsPanel;
         this.staffPanel = staffPanel;
         this.authService = authService;
+        this.guestPanel = guestPanel;
+        // this.billingPanel = billingPanel;
+        // this.reportsPanel = reportsPanel;
         setTitle("Login");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -81,7 +95,12 @@ public class LoginFrame extends JFrame {
             authService.login(username, rawPassword);
             dispose();
             MainFrame mainFrame = new MainFrame();
+            mainFrame.addCard("Rooms", roomsPanel);
             mainFrame.addCard("Staff", staffPanel);
+            mainFrame.addCard("Guests", guestPanel);
+            // mainFrame.addCard("Billing", billingPanel);
+            // mainFrame.addCard("Reports", reportsPanel);
+            mainFrame.showCard(MainFrame.ROOMS);
             mainFrame.setLocationRelativeTo(null);
             mainFrame.setVisible(true);
         } catch (Exception e) {

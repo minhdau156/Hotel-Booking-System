@@ -82,7 +82,7 @@ public class MainFrame extends JFrame{
         return sidebar;
     }
 
-    private void showCard(String name) {
+    public void showCard(String name) {
         if (!cards.containsKey(name)) {
             throw new IllegalArgumentException("No card registered: " + name);
         }
