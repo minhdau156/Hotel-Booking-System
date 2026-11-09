@@ -3,6 +3,7 @@ package com.hotel.hotel_booking_system.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -84,6 +85,13 @@ public class StaffService {
             throw new IllegalArgumentException("Staff not found");
         }
     }
-    
+
+    public void delete(Long staffId) {
+        try {
+            staffDao.delete(staffId);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("Cannot delete this staff member because related records exist.");
+        }
+    }
 
 }

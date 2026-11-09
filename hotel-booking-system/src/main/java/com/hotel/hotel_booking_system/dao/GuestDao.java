@@ -10,6 +10,7 @@ public interface GuestDao{
     Optional<Guest> findById(long id);
     List<Guest> findAll();
     void save(Guest guest);
+    void delete(long id);
     List<Guest> search(String query);
 }
 

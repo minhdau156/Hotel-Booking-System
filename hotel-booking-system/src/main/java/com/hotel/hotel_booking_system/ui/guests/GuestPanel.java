@@ -12,17 +12,24 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+
+import org.springframework.stereotype.Component;
 
 import com.hotel.hotel_booking_system.model.Guest;
 import com.hotel.hotel_booking_system.service.GuestService;
 import com.hotel.hotel_booking_system.ui.common.BaseTableModel;
+import com.hotel.hotel_booking_system.ui.common.Dialog;
 
+
+@Component
 public class GuestPanel extends JPanel{
 
     private final GuestService guestService;
     private final BaseTableModel<Guest> tableModel;
     private final JTable table;
     private final JTextField searchField = new JTextField(20);
+    private final JButton deleteButton = new JButton("Delete");
 
     public GuestPanel(GuestService guestService){
 
@@ -36,11 +43,13 @@ public class GuestPanel extends JPanel{
 
         JButton searchBtn = new JButton("Search");
         JButton addBtn = new JButton("Add Guest");
+        deleteButton.setEnabled(false);
 
         searchBar.add(new JLabel("Search:"));
         searchBar.add(searchField);
         searchBar.add(searchBtn);
         searchBar.add(addBtn);
+        searchBar.add(deleteButton);
 
         add(searchBar, BorderLayout.NORTH);
 
@@ -54,6 +63,7 @@ public class GuestPanel extends JPanel{
         );
 
         table = new JTable(tableModel);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         add(new JScrollPane(table), BorderLayout.CENTER);
 
@@ -66,6 +76,14 @@ public class GuestPanel extends JPanel{
                 refresh();
             }
         });
+
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                deleteButton.setEnabled(table.getSelectedRow() >= 0);
+            }
+        });
+
+        deleteButton.addActionListener(e -> deleteSelected());
 
         table.addMouseListener(new MouseAdapter(){
             @Override
@@ -85,11 +103,29 @@ public class GuestPanel extends JPanel{
         refresh();
     }
 
+    private void deleteSelected() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            return;
+        }
+        Guest selected = tableModel.getRowAt(table.convertRowIndexToModel(row));
+        if (!Dialog.showConfirm(this, "Delete guest " + selected.getFullName() + "?")) {
+            return;
+        }
+        try {
+            guestService.deleteGuest(selected.getId());
+            refresh();
+        } catch (IllegalArgumentException ex) {
+            Dialog.showError(this, ex.getMessage());
+        }
+    }
+
     public void refresh(){
         String query = searchField.getText();
 
         List<Guest> guests = query == null || query.isBlank() ? guestService.findAll() : guestService.search(query.trim());
 
         tableModel.setRows(guests);
+        deleteButton.setEnabled(table.getSelectedRow() >= 0);
     }
 }

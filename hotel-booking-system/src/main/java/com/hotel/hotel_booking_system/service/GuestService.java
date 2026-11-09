@@ -3,6 +3,7 @@ package com.hotel.hotel_booking_system.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.hotel.hotel_booking_system.dao.GuestDao;
@@ -46,5 +47,13 @@ public class GuestService{
         }
 
         guestDao.save(guest);
+    }
+
+    public void deleteGuest(long id){
+        try {
+            guestDao.delete(id);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("Cannot delete this guest because they have existing reservations.");
+        }
     }
 }

@@ -54,6 +54,11 @@ public class JdbcGuestDao implements GuestDao{
     }
 
     @Override
+    public void delete(long id){
+        jdbcTemplate.update("DELETE FROM guests WHERE id = ?", id);
+    }
+
+    @Override
     public List<Guest> search(String query){
         String keyword = "%" + (query == null ? "" : query.trim()) + "%";
 

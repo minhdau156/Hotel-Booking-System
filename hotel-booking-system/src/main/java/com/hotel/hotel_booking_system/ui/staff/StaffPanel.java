@@ -10,18 +10,22 @@ import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
 
 import org.springframework.stereotype.Component;
 
 import com.hotel.hotel_booking_system.model.Staff;
 import com.hotel.hotel_booking_system.service.StaffService;
 import com.hotel.hotel_booking_system.ui.common.BaseTableModel;
+import com.hotel.hotel_booking_system.ui.common.Dialog;
 
 
 @Component
 public class StaffPanel extends JPanel{
     private final StaffService staffService;
     private BaseTableModel<Staff> tableModel;
+    private JTable staffTable;
+    private final JButton deleteButton = new JButton("Delete");
 
     public StaffPanel(StaffService staffService) {
         this.staffService = staffService;
@@ -31,13 +35,16 @@ public class StaffPanel extends JPanel{
     private void initUi() {
         setLayout(new BorderLayout());
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton addButton = new JButton("Add Staff");
+        deleteButton.setEnabled(false);
         buttonPanel.add(addButton);
+        buttonPanel.add(deleteButton);
         add(buttonPanel, BorderLayout.NORTH);
 
         tableModel = new BaseTableModel<>(List.of("Username", "Full Name", "Role", "Status"), List.of(Staff::getUsername, Staff::getFullName, Staff::getRole, Staff::isActive));
-        JTable staffTable = new JTable(tableModel);
+        staffTable = new JTable(tableModel);
+        staffTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         add(new JScrollPane(staffTable), BorderLayout.CENTER);
 
         refresh();
@@ -46,6 +53,14 @@ public class StaffPanel extends JPanel{
             StaffFormDialog.showAdd(staffService, this);
             refresh();
         });
+
+        staffTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                deleteButton.setEnabled(staffTable.getSelectedRow() >= 0);
+            }
+        });
+
+        deleteButton.addActionListener(e -> deleteSelected());
 
         staffTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -59,7 +74,25 @@ public class StaffPanel extends JPanel{
         });
     }
 
+    private void deleteSelected() {
+        int row = staffTable.getSelectedRow();
+        if (row < 0) {
+            return;
+        }
+        Staff selected = tableModel.getRowAt(row);
+        if (!Dialog.showConfirm(this, "Delete staff " + selected.getUsername() + "?")) {
+            return;
+        }
+        try {
+            staffService.delete(selected.getId());
+            refresh();
+        } catch (IllegalArgumentException ex) {
+            Dialog.showError(this, ex.getMessage());
+        }
+    }
+
     private void refresh() {
         tableModel.setRows(staffService.findAll());
+        deleteButton.setEnabled(staffTable.getSelectedRow() >= 0);
     }
 }
