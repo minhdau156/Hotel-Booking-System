@@ -1,21 +1,19 @@
 package com.hotel.hotel_booking_system.ui.guests;
 
+import com.hotel.hotel_booking_system.model.Guest;
+import com.hotel.hotel_booking_system.service.GuestService;
+import com.hotel.hotel_booking_system.ui.common.BaseTableModel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
-
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-
-import com.hotel.hotel_booking_system.model.Guest;
-import com.hotel.hotel_booking_system.service.GuestService;
-import com.hotel.hotel_booking_system.ui.common.BaseTableModel;
 
 public class GuestPanel extends JPanel{
 
@@ -70,10 +68,11 @@ public class GuestPanel extends JPanel{
         table.addMouseListener(new MouseAdapter(){
             @Override
             public void mouseClicked(MouseEvent e){
-                if (e.getClickCount() == 2 && table.getSelectedRow() >= 0){
+                int viewRow = table.rowAtPoint(e.getPoint());
 
-                    int selectedRow = table.getSelectedRow();
-                    Guest selected = tableModel.getRowAt(table.convertRowIndexToModel(selectedRow));
+                if (e.getClickCount() == 2 && viewRow >= 0){
+
+                    Guest selected = tableModel.getRowAt(table.convertRowIndexToModel(viewRow));
 
                     if (GuestFormDialog.showEdit(GuestPanel.this, guestService, selected)){
                         refresh();
