@@ -59,4 +59,9 @@ public class Guest{
     public void setIdNumber(String idNumber){
         this.idNumber = idNumber;
     }
+
+    @Override
+    public String toString(){
+        return fullName == null ? "" : fullName + " - " + phone  ;
+    }
 }
