@@ -8,6 +8,7 @@ import javax.swing.*;
 import java.awt.*;
 
 import org.springframework.stereotype.Component;
+import com.hotel.hotel_booking_system.ui.booking.BookingModulePanel;
 
 /**
  * MainFrame
@@ -87,6 +88,10 @@ public class MainFrame extends JFrame{
             throw new IllegalArgumentException("No card registered: " + name);
         }
         cardLayout.show(cardPanel, name);
+        JPanel selectedCard = cards.get(name);
+        if (selectedCard instanceof BookingModulePanel bookingModulePanel) {
+            bookingModulePanel.refresh();
+        }
 
         sidebarButtons.forEach((moduleName, button) -> {
             boolean active = moduleName.equals(name);

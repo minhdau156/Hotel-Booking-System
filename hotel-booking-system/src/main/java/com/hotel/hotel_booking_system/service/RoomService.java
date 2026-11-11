@@ -86,6 +86,14 @@ public class RoomService {
 
     /** Module 3 (Booking) gọi method này để tìm phòng trống. */
     public List<Room> findAvailable(LocalDate checkIn, LocalDate checkOut) {
+        if (checkIn == null || checkOut == null || !checkOut.isAfter(checkIn)) {
+            throw new IllegalArgumentException(
+                    "Check-out must be after check-in.");
+        }
+        if (checkIn.isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException(
+                    "Check-in date cannot be in the past.");
+        }
         return roomDao.findAvailable(checkIn, checkOut);
     }
 
