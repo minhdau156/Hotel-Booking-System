@@ -18,10 +18,11 @@ import com.hotel.hotel_booking_system.model.Staff;
 import com.hotel.hotel_booking_system.service.StaffService;
 import com.hotel.hotel_booking_system.ui.common.BaseTableModel;
 import com.hotel.hotel_booking_system.ui.common.Dialog;
+import com.hotel.hotel_booking_system.ui.common.Refreshable;
 
 
 @Component
-public class StaffPanel extends JPanel{
+public class StaffPanel extends JPanel implements Refreshable {
     private final StaffService staffService;
     private BaseTableModel<Staff> tableModel;
     private JTable staffTable;
@@ -91,7 +92,8 @@ public class StaffPanel extends JPanel{
         }
     }
 
-    private void refresh() {
+    @Override
+    public void refresh() {
         tableModel.setRows(staffService.findAll());
         deleteButton.setEnabled(staffTable.getSelectedRow() >= 0);
     }

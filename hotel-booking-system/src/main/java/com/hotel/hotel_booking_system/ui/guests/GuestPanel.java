@@ -20,10 +20,11 @@ import com.hotel.hotel_booking_system.model.Guest;
 import com.hotel.hotel_booking_system.service.GuestService;
 import com.hotel.hotel_booking_system.ui.common.BaseTableModel;
 import com.hotel.hotel_booking_system.ui.common.Dialog;
+import com.hotel.hotel_booking_system.ui.common.Refreshable;
 
 
 @Component
-public class GuestPanel extends JPanel{
+public class GuestPanel extends JPanel implements Refreshable {
 
     private final GuestService guestService;
     private final BaseTableModel<Guest> tableModel;

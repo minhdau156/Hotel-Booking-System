@@ -7,8 +7,10 @@ import javax.swing.JTabbedPane;
 
 import org.springframework.stereotype.Component;
 
+import com.hotel.hotel_booking_system.ui.common.Refreshable;
+
 @Component
-public class BookingModulePanel extends JPanel {
+public class BookingModulePanel extends JPanel implements Refreshable {
     private final BookingPanel bookingPanel;
     private final ActiveReservationsPanel activeReservationsPanel;
 
@@ -25,6 +27,7 @@ public class BookingModulePanel extends JPanel {
         add(tabs, BorderLayout.CENTER);
     }
 
+    @Override
     public void refresh() {
         bookingPanel.refresh();
         activeReservationsPanel.refresh();

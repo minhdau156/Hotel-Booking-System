@@ -8,7 +8,7 @@ import javax.swing.*;
 import java.awt.*;
 
 import org.springframework.stereotype.Component;
-import com.hotel.hotel_booking_system.ui.booking.BookingModulePanel;
+import com.hotel.hotel_booking_system.ui.common.Refreshable;
 
 /**
  * MainFrame
@@ -89,8 +89,8 @@ public class MainFrame extends JFrame{
         }
         cardLayout.show(cardPanel, name);
         JPanel selectedCard = cards.get(name);
-        if (selectedCard instanceof BookingModulePanel bookingModulePanel) {
-            bookingModulePanel.refresh();
+        if (selectedCard instanceof Refreshable refreshable) {
+            refreshable.refresh();
         }
 
         sidebarButtons.forEach((moduleName, button) -> {
