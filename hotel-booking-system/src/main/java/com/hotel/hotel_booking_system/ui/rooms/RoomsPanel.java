@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.hotel.hotel_booking_system.service.RoomService;
 
-@Component 
+@Component
 public class RoomsPanel extends JPanel {
 
     public RoomsPanel(RoomService roomService) {
