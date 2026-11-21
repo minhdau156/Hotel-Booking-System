@@ -95,4 +95,8 @@ public class JdbcInvoiceDao implements InvoiceDao {
             jdbcTemplate.query(sql, rowMapper, reservationId);
         return results.stream().findFirst();
     }
+    @Override
+    public void delete(long id) {
+        jdbcTemplate.update("DELETE FROM invoices WHERE id = ?", id);
+    }
 }

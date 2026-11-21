@@ -10,4 +10,5 @@ public interface InvoiceDao {
     Optional<Invoice> findById(long id);
     List<Invoice> findAll();
     Optional<Invoice> findByReservationId(long reservationId);
+    void delete(long id);
 }

@@ -99,4 +99,8 @@ public class JdbcPaymentDao implements PaymentDao {
             """;
         return jdbcTemplate.query(sql, rowMapper, invoiceId);
     }
+    @Override
+    public void delete(long id) {
+        jdbcTemplate.update("DELETE FROM payments WHERE id = ?", id);
+    }
 }

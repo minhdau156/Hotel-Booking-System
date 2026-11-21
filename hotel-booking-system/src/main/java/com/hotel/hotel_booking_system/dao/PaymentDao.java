@@ -10,4 +10,5 @@ public interface PaymentDao {
     Optional<Payment> findById(long id);
     List<Payment> findAll();
     List<Payment> findByInvoiceId(long invoiceId);
+    void delete(long id);
 }

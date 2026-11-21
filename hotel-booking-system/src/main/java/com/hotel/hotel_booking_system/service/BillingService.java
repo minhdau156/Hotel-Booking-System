@@ -7,6 +7,7 @@ import com.hotel.hotel_booking_system.model.Payment;
 import com.hotel.hotel_booking_system.model.PaymentMethod;
 import com.hotel.hotel_booking_system.model.Reservation;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -109,9 +110,14 @@ public class BillingService {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal remaining = invoice.getTotalAmount()
             .subtract(totalPaid);
-        if (amount.compareTo(remaining) > 0) {
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException(
-                "Số tiền thanh toán vượt quá số tiền còn nợ"
+                "Hóa đơn này đã được thanh toán đầy đủ"
+            );
+        }
+        if (amount.compareTo(remaining) != 0) {
+            throw new IllegalArgumentException(
+                "Phải thanh toán đủ số tiền còn lại: " + remaining
             );
         }
         Payment payment = new Payment();
@@ -120,5 +126,22 @@ public class BillingService {
         payment.setMethod(method);
         payment.setPaidAt(LocalDateTime.now());
         return paymentDao.save(payment);
+    }
+    @Transactional
+    public void deleteInvoice(long invoiceId) {
+        invoiceDao.findById(invoiceId)
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Không tìm thấy hóa đơn: " + invoiceId
+            ));
+        try {
+            for (Payment payment : paymentDao.findByInvoiceId(invoiceId)) {
+                paymentDao.delete(payment.getId());
+            }
+            invoiceDao.delete(invoiceId);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException(
+                "Không thể xóa hóa đơn này"
+            );
+        }
     }
 }
