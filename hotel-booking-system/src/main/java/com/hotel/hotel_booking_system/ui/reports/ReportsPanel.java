@@ -1,226 +1,230 @@
 
-// package com.hotel.hotel_booking_system.ui.reports;
+package com.hotel.hotel_booking_system.ui.reports;
 
-// import com.hotel.hotel_booking_system.service.ReportService;
-// import com.hotel.hotel_booking_system.service.ReportService.OccupancyRow;
-// import com.hotel.hotel_booking_system.service.ReportService.RevenueRow;
-// import com.hotel.hotel_booking_system.ui.common.BaseTableModel;
-// import com.hotel.hotel_booking_system.ui.common.Dialog;
+import com.hotel.hotel_booking_system.service.ReportService;
+import com.hotel.hotel_booking_system.service.ReportService.OccupancyRow;
+import com.hotel.hotel_booking_system.service.ReportService.RevenueRow;
+import com.hotel.hotel_booking_system.ui.common.BaseTableModel;
+import com.hotel.hotel_booking_system.ui.common.Dialog;
 
-// import javax.swing.*;
-// import java.awt.*;
-// import java.time.LocalDate;
-// import java.time.ZoneId;
-// import java.util.Date;
-// import java.util.List;
+import javax.swing.*;
 
-// public class ReportsPanel extends JPanel {
+import org.springframework.stereotype.Component;
 
-//     private final ReportService reportService;
+import java.awt.*;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.List;
 
-//     private final BaseTableModel<OccupancyRow> occupancyModel =
-//         new BaseTableModel<>(
-//             List.of(
-//                 "Room Type",
-//                 "Nights Booked",
-//                 "Occupancy Rate"
-//             ),
-//             List.of(
-//                 row -> row.roomTypeName(),
-//                 row -> row.nightsBooked(),
-//                 row -> String.format(
-//                     "%.2f%%",
-//                     row.occupancyRate()
-//                 )
-//             )
-//         );
+@Component 
+public class ReportsPanel extends JPanel {
 
-//     private final BaseTableModel<RevenueRow> revenueModel =
-//         new BaseTableModel<>(
-//             List.of("Period", "Total Revenue"),
-//             List.of(
-//                 row -> row.period(),
-//                 row -> row.totalRevenue()
-//             )
-//         );
+    private final ReportService reportService;
 
-//     private final JTable occupancyTable =
-//         new JTable(occupancyModel);
+    private final BaseTableModel<OccupancyRow> occupancyModel =
+        new BaseTableModel<>(
+            List.of(
+                "Room Type",
+                "Nights Booked",
+                "Occupancy Rate"
+            ),
+            List.of(
+                row -> row.roomTypeName(),
+                row -> row.nightsBooked(),
+                row -> String.format(
+                    "%.2f%%",
+                    row.occupancyRate()
+                )
+            )
+        );
 
-//     private final JTable revenueTable =
-//         new JTable(revenueModel);
+    private final BaseTableModel<RevenueRow> revenueModel =
+        new BaseTableModel<>(
+            List.of("Period", "Total Revenue"),
+            List.of(
+                row -> row.period(),
+                row -> row.totalRevenue()
+            )
+        );
 
-//     private final JSpinner occupancyFrom = createDateSpinner();
-//     private final JSpinner occupancyTo = createDateSpinner();
-//     private final JSpinner revenueFrom = createDateSpinner();
-//     private final JSpinner revenueTo = createDateSpinner();
+    private final JTable occupancyTable =
+        new JTable(occupancyModel);
 
-//     public ReportsPanel(ReportService reportService) {
-//         this.reportService = reportService;
+    private final JTable revenueTable =
+        new JTable(revenueModel);
 
-//         setLayout(new BorderLayout(8, 8));
-//         setBorder(
-//             BorderFactory.createEmptyBorder(10, 10, 10, 10)
-//         );
+    private final JSpinner occupancyFrom = createDateSpinner();
+    private final JSpinner occupancyTo = createDateSpinner();
+    private final JSpinner revenueFrom = createDateSpinner();
+    private final JSpinner revenueTo = createDateSpinner();
 
-//         JTabbedPane tabs = new JTabbedPane();
+    public ReportsPanel(ReportService reportService) {
+        this.reportService = reportService;
 
-//         tabs.addTab(
-//             "Occupancy",
-//             createOccupancyPanel()
-//         );
+        setLayout(new BorderLayout(8, 8));
+        setBorder(
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        );
 
-//         tabs.addTab(
-//             "Revenue",
-//             createRevenuePanel()
-//         );
+        JTabbedPane tabs = new JTabbedPane();
 
-//         add(tabs, BorderLayout.CENTER);
-//     }
+        tabs.addTab(
+            "Occupancy",
+            createOccupancyPanel()
+        );
 
-//     private JPanel createOccupancyPanel() {
-//         JPanel panel = new JPanel(new BorderLayout(8, 8));
+        tabs.addTab(
+            "Revenue",
+            createRevenuePanel()
+        );
 
-//         JButton runButton = new JButton("Run");
+        add(tabs, BorderLayout.CENTER);
+    }
 
-//         JPanel filter = createFilterBar(
-//             occupancyFrom,
-//             occupancyTo,
-//             runButton
-//         );
+    private JPanel createOccupancyPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
 
-//         occupancyTable.setFillsViewportHeight(true);
+        JButton runButton = new JButton("Run");
 
-//         JScrollPane scrollPane =
-//             new JScrollPane(occupancyTable);
+        JPanel filter = createFilterBar(
+            occupancyFrom,
+            occupancyTo,
+            runButton
+        );
 
-//         panel.add(filter, BorderLayout.NORTH);
-//         panel.add(scrollPane, BorderLayout.CENTER);
+        occupancyTable.setFillsViewportHeight(true);
 
-//         runButton.addActionListener(event -> {
-//             try {
-//                 LocalDate from = readDate(occupancyFrom);
-//                 LocalDate to = readDate(occupancyTo);
+        JScrollPane scrollPane =
+            new JScrollPane(occupancyTable);
 
-//                 if (from.isAfter(to)) {
-//                     Dialog.showError(
-//                         this,
-//                         "Ngày bắt đầu không được sau ngày kết thúc."
-//                     );
-//                     return;
-//                 }
+        panel.add(filter, BorderLayout.NORTH);
+        panel.add(scrollPane, BorderLayout.CENTER);
 
-//                 List<OccupancyRow> rows =
-//                     reportService.occupancyReport(from, to);
+        runButton.addActionListener(event -> {
+            try {
+                LocalDate from = readDate(occupancyFrom);
+                LocalDate to = readDate(occupancyTo);
 
-//                 occupancyModel.setRows(rows);
+                if (from.isAfter(to)) {
+                    Dialog.showError(
+                        this,
+                        "Ngày bắt đầu không được sau ngày kết thúc."
+                    );
+                    return;
+                }
 
-//             } catch (RuntimeException ex) {
-//                 showError(ex);
-//             }
-//         });
+                List<OccupancyRow> rows =
+                    reportService.occupancyReport(from, to);
 
-//         return panel;
-//     }
+                occupancyModel.setRows(rows);
 
-//     private JPanel createRevenuePanel() {
-//         JPanel panel = new JPanel(new BorderLayout(8, 8));
+            } catch (RuntimeException ex) {
+                showError(ex);
+            }
+        });
 
-//         JButton runButton = new JButton("Run");
+        return panel;
+    }
 
-//         JPanel filter = createFilterBar(
-//             revenueFrom,
-//             revenueTo,
-//             runButton
-//         );
+    private JPanel createRevenuePanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
 
-//         revenueTable.setFillsViewportHeight(true);
+        JButton runButton = new JButton("Run");
 
-//         JScrollPane scrollPane =
-//             new JScrollPane(revenueTable);
+        JPanel filter = createFilterBar(
+            revenueFrom,
+            revenueTo,
+            runButton
+        );
 
-//         panel.add(filter, BorderLayout.NORTH);
-//         panel.add(scrollPane, BorderLayout.CENTER);
+        revenueTable.setFillsViewportHeight(true);
 
-//         runButton.addActionListener(event -> {
-//             try {
-//                 LocalDate from = readDate(revenueFrom);
-//                 LocalDate to = readDate(revenueTo);
+        JScrollPane scrollPane =
+            new JScrollPane(revenueTable);
 
-//                 if (from.isAfter(to)) {
-//                     Dialog.showError(
-//                         this,
-//                         "Ngày bắt đầu không được sau ngày kết thúc."
-//                     );
-//                     return;
-//                 }
+        panel.add(filter, BorderLayout.NORTH);
+        panel.add(scrollPane, BorderLayout.CENTER);
 
-//                 List<RevenueRow> rows =
-//                     reportService.revenueByPeriod(from, to);
+        runButton.addActionListener(event -> {
+            try {
+                LocalDate from = readDate(revenueFrom);
+                LocalDate to = readDate(revenueTo);
 
-//                 revenueModel.setRows(rows);
+                if (from.isAfter(to)) {
+                    Dialog.showError(
+                        this,
+                        "Ngày bắt đầu không được sau ngày kết thúc."
+                    );
+                    return;
+                }
 
-//             } catch (RuntimeException ex) {
-//                 showError(ex);
-//             }
-//         });
+                List<RevenueRow> rows =
+                    reportService.revenueByPeriod(from, to);
 
-//         return panel;
-//     }
+                revenueModel.setRows(rows);
 
-//     private JPanel createFilterBar(
-//             JSpinner fromSpinner,
-//             JSpinner toSpinner,
-//             JButton runButton) {
+            } catch (RuntimeException ex) {
+                showError(ex);
+            }
+        });
 
-//         JPanel panel =
-//             new JPanel(new FlowLayout(FlowLayout.LEFT));
+        return panel;
+    }
 
-//         panel.add(new JLabel("From:"));
-//         panel.add(fromSpinner);
+    private JPanel createFilterBar(
+            JSpinner fromSpinner,
+            JSpinner toSpinner,
+            JButton runButton) {
 
-//         panel.add(new JLabel("To:"));
-//         panel.add(toSpinner);
+        JPanel panel =
+            new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-//         panel.add(runButton);
+        panel.add(new JLabel("From:"));
+        panel.add(fromSpinner);
 
-//         return panel;
-//     }
+        panel.add(new JLabel("To:"));
+        panel.add(toSpinner);
 
-//     private static JSpinner createDateSpinner() {
-//         SpinnerDateModel model = new SpinnerDateModel(
-//             new Date(),
-//             null,
-//             null,
-//             java.util.Calendar.DAY_OF_MONTH
-//         );
+        panel.add(runButton);
 
-//         JSpinner spinner = new JSpinner(model);
+        return panel;
+    }
 
-//         spinner.setEditor(
-//             new JSpinner.DateEditor(
-//                 spinner,
-//                 "dd/MM/yyyy"
-//             )
-//         );
+    private static JSpinner createDateSpinner() {
+        SpinnerDateModel model = new SpinnerDateModel(
+            new Date(),
+            null,
+            null,
+            java.util.Calendar.DAY_OF_MONTH
+        );
 
-//         return spinner;
-//     }
+        JSpinner spinner = new JSpinner(model);
 
-//     private static LocalDate readDate(JSpinner spinner) {
-//         Date date = (Date) spinner.getValue();
+        spinner.setEditor(
+            new JSpinner.DateEditor(
+                spinner,
+                "dd/MM/yyyy"
+            )
+        );
 
-//         return date.toInstant()
-//             .atZone(ZoneId.systemDefault())
-//             .toLocalDate();
-//     }
+        return spinner;
+    }
 
-//     private void showError(RuntimeException ex) {
-//         Dialog.showError(
-//             this,
-//             ex.getMessage() == null
-//                 ? "Không thể tải báo cáo."
-//                 : ex.getMessage()
-//         );
-//     }
-// }
+    private static LocalDate readDate(JSpinner spinner) {
+        Date date = (Date) spinner.getValue();
+
+        return date.toInstant()
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate();
+    }
+
+    private void showError(RuntimeException ex) {
+        Dialog.showError(
+            this,
+            ex.getMessage() == null
+                ? "Không thể tải báo cáo."
+                : ex.getMessage()
+        );
+    }
+}

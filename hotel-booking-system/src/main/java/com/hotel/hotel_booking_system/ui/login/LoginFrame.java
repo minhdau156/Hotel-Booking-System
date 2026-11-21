@@ -17,10 +17,12 @@ import org.springframework.stereotype.Component;
 
 import com.hotel.hotel_booking_system.MainFrame;
 import com.hotel.hotel_booking_system.service.AuthService;
+import com.hotel.hotel_booking_system.ui.billing.BillingPanel;
 import com.hotel.hotel_booking_system.ui.booking.BookingModulePanel;
 // import com.hotel.hotel_booking_system.ui.billing.BillingPanel;
 import com.hotel.hotel_booking_system.ui.common.Dialog;
 import com.hotel.hotel_booking_system.ui.guests.GuestPanel;
+import com.hotel.hotel_booking_system.ui.reports.ReportsPanel;
 import com.hotel.hotel_booking_system.ui.rooms.RoomsPanel;
 // import com.hotel.hotel_booking_system.ui.reports.ReportsPanel;
 import com.hotel.hotel_booking_system.ui.staff.StaffPanel;
@@ -36,23 +38,25 @@ public class LoginFrame extends JFrame {
     private final StaffPanel staffPanel;
     private final GuestPanel guestPanel;
     private final BookingModulePanel bookingModulePanel;
-    // private final BillingPanel billingPanel;
-    // private final ReportsPanel reportsPanel;
+    private final BillingPanel billingPanel;
+    private final ReportsPanel reportsPanel;
 
     public LoginFrame(
             AuthService authService,
             RoomsPanel roomsPanel,
             StaffPanel staffPanel,
             GuestPanel guestPanel,
-            BookingModulePanel bookingModulePanel
+            BookingModulePanel bookingModulePanel,
+            BillingPanel billingPanel,
+            ReportsPanel reportsPanel
     ) {
         this.roomsPanel = roomsPanel;
         this.staffPanel = staffPanel;
         this.authService = authService;
         this.guestPanel = guestPanel;
         this.bookingModulePanel = bookingModulePanel;
-        // this.billingPanel = billingPanel;
-        // this.reportsPanel = reportsPanel;
+        this.billingPanel = billingPanel;
+        this.reportsPanel = reportsPanel;
         setTitle("Login");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -106,8 +110,8 @@ public class LoginFrame extends JFrame {
             mainFrame.addCard("Staff", staffPanel);
             mainFrame.addCard("Guests", guestPanel);
             mainFrame.addCard(MainFrame.BOOKING, bookingModulePanel);
-            // mainFrame.addCard("Billing", billingPanel);
-            // mainFrame.addCard("Reports", reportsPanel);
+            mainFrame.addCard("Billing", billingPanel);
+            mainFrame.addCard("Reports", reportsPanel);
             mainFrame.showCard(MainFrame.ROOMS);
             mainFrame.setLocationRelativeTo(null);
             mainFrame.setVisible(true);
