@@ -5,8 +5,11 @@ import java.awt.BorderLayout;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
+import org.springframework.stereotype.Component;
+
 import com.hotel.hotel_booking_system.service.RoomService;
 
+@Component
 public class RoomsPanel extends JPanel {
 
     public RoomsPanel(RoomService roomService) {
