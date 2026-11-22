@@ -1,5 +1,9 @@
 # Hotel-Booking-System
 
+## Demo
+
+▶️ **Video demo:** https://drive.google.com/file/d/1HEix1a-qeK--h1TFiGPgHMZrHaCEWcvL/view?usp=sharing
+
 ## Database setup (MySQL in Docker)
 
 The app connects to MySQL using the settings in `hotel-booking-system/src/main/resources/application.properties`:
